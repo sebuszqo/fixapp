@@ -1,0 +1,73 @@
+basePath: /
+definitions:
+  health.healthResponse:
+    properties:
+      started:
+        example: "2025-10-26T10:30:00Z"
+        type: string
+      status:
+        example: ok
+        type: string
+      uptime:
+        example: 5h30m
+        type: string
+      version:
+        example: 1.0.0
+        type: string
+    type: object
+  health.readinessResponse:
+    properties:
+      status:
+        example: ready
+        type: string
+    type: object
+host: localhost:8080
+info:
+  contact:
+    email: support@fixapp.com
+    name: API Support
+  description: FixApp backend API server
+  license:
+    name: Apache 2.0
+    url: http://www.apache.org/licenses/LICENSE-2.0.html
+  termsOfService: http://swagger.io/terms/
+  title: FixApp API
+  version: "1.0"
+paths:
+  /healthz:
+    get:
+      consumes:
+      - application/json
+      description: Check if the application is running
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/health.healthResponse'
+      summary: Health check
+      tags:
+      - monitoring
+  /ready:
+    get:
+      consumes:
+      - application/json
+      description: Check if the application is ready to accept traffic
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/health.readinessResponse'
+      summary: Readiness check
+      tags:
+      - monitoring
+securityDefinitions:
+  BearerAuth:
+    description: Type "Bearer" followed by a space and JWT token.
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"
