@@ -1,6 +1,85 @@
 basePath: /
 definitions:
-  health.healthResponse:
+  fixapp_pkg_response.Error:
+    properties:
+      code:
+        example: INVALID_INPUT
+        type: string
+      error:
+        example: Invalid request
+        type: string
+      success:
+        example: false
+        type: boolean
+    type: object
+  fixapp_pkg_response.Success:
+    properties:
+      data: {}
+      message:
+        type: string
+      success:
+        example: true
+        type: boolean
+    type: object
+  fixapp_pkg_response.ValidationError:
+    properties:
+      error:
+        example: Validation failed
+        type: string
+      fields:
+        additionalProperties:
+          type: string
+        type: object
+      success:
+        example: false
+        type: boolean
+    type: object
+  internal_auth.LoginResponse:
+    properties:
+      auth_url:
+        example: https://accounts.google.com/o/oauth2/v2/auth?...
+        type: string
+      state:
+        example: random_state_string
+        type: string
+    type: object
+  internal_auth.ProviderInfo:
+    properties:
+      name:
+        example: google
+        type: string
+      type:
+        example: oauth
+        type: string
+    type: object
+  internal_auth.ProvidersResponse:
+    properties:
+      providers:
+        items:
+          $ref: '#/definitions/internal_auth.ProviderInfo'
+        type: array
+    type: object
+  internal_auth.RefreshTokenRequest:
+    properties:
+      refresh_token:
+        type: string
+    type: object
+  internal_auth.TokenResponse:
+    properties:
+      access_token:
+        type: string
+      expires_in:
+        example: 900
+        type: integer
+      redirect_url:
+        type: string
+      refresh_token:
+        type: string
+      token_type:
+        example: Bearer
+        type: string
+    type: object
+  internal_health.healthResponse:
     properties:
       started:
         example: "2025-10-26T10:30:00Z"
@@ -15,10 +94,109 @@ definitions:
         example: 1.0.0
         type: string
     type: object
-  health.readinessResponse:
+  internal_health.readinessResponse:
     properties:
       status:
         example: ready
+        type: string
+    type: object
+  internal_user.ProfileResponse:
+    description: Current user's profile
+    properties:
+      avatar_url:
+        example: https://example.com/avatar.jpg
+        type: string
+      email:
+        example: user@example.com
+        type: string
+      id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      name:
+        example: John Doe
+        type: string
+      phone:
+        example: "+1234567890"
+        type: string
+      role:
+        example: user
+        type: string
+    type: object
+  internal_user.UpdateProfileRequest:
+    description: Profile update request
+    properties:
+      avatar_url:
+        example: https://example.com/avatar.jpg
+        type: string
+      name:
+        example: John Doe
+        type: string
+      phone:
+        example: "+1234567890"
+        type: string
+    type: object
+  internal_user.UpdateRoleRequest:
+    description: Role update request
+    properties:
+      role:
+        example: handyman
+        type: string
+    type: object
+  internal_user.UserListResponse:
+    description: Paginated user list
+    properties:
+      has_more:
+        example: true
+        type: boolean
+      limit:
+        example: 20
+        type: integer
+      offset:
+        example: 0
+        type: integer
+      total:
+        example: 100
+        type: integer
+      users:
+        items:
+          $ref: '#/definitions/internal_user.UserResponse'
+        type: array
+    type: object
+  internal_user.UserResponse:
+    description: User information
+    properties:
+      avatar_url:
+        example: https://example.com/avatar.jpg
+        type: string
+      created_at:
+        example: "2025-01-10T12:00:00Z"
+        type: string
+      email:
+        example: user@example.com
+        type: string
+      email_verified:
+        example: true
+        type: boolean
+      id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      is_active:
+        example: true
+        type: boolean
+      last_login_at:
+        example: "2025-01-10T14:30:00Z"
+        type: string
+      name:
+        example: John Doe
+        type: string
+      phone:
+        example: "+1234567890"
+        type: string
+      provider:
+        example: google
+        type: string
+      role:
+        example: user
         type: string
     type: object
 host: localhost:8080
@@ -34,6 +212,288 @@ info:
   title: FixApp API
   version: "1.0"
 paths:
+  /admin/users:
+    get:
+      consumes:
+      - application/json
+      description: Returns a paginated list of users (admin only)
+      parameters:
+      - description: Filter by role
+        in: query
+        name: role
+        type: string
+      - description: Filter by active status
+        in: query
+        name: is_active
+        type: boolean
+      - description: Search by email or name
+        in: query
+        name: search
+        type: string
+      - description: Limit (default 20, max 100)
+        in: query
+        name: limit
+        type: integer
+      - description: Offset (default 0)
+        in: query
+        name: offset
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_user.UserListResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/fixapp_pkg_response.Error'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/fixapp_pkg_response.Error'
+      security:
+      - BearerAuth: []
+      summary: List all users
+      tags:
+      - admin
+  /admin/users/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: Disables a user account (admin only)
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/fixapp_pkg_response.Error'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/fixapp_pkg_response.Error'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/fixapp_pkg_response.Error'
+      security:
+      - BearerAuth: []
+      summary: Deactivate user
+      tags:
+      - admin
+    get:
+      consumes:
+      - application/json
+      description: Returns a user by their ID (admin only)
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_user.UserResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/fixapp_pkg_response.Error'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/fixapp_pkg_response.Error'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/fixapp_pkg_response.Error'
+      security:
+      - BearerAuth: []
+      summary: Get user by ID
+      tags:
+      - admin
+  /admin/users/{id}/role:
+    patch:
+      consumes:
+      - application/json
+      description: Changes a user's role (admin only)
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Role update
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/internal_user.UpdateRoleRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/fixapp_pkg_response.Success'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/fixapp_pkg_response.Error'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/fixapp_pkg_response.Error'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/fixapp_pkg_response.Error'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/fixapp_pkg_response.Error'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/fixapp_pkg_response.ValidationError'
+      security:
+      - BearerAuth: []
+      summary: Update user role
+      tags:
+      - admin
+  /auth/{provider}/callback:
+    get:
+      description: Handles the OAuth callback and returns authentication tokens
+      parameters:
+      - description: Provider name (google, facebook)
+        in: path
+        name: provider
+        required: true
+        type: string
+      - description: Authorization code
+        in: query
+        name: code
+        required: true
+        type: string
+      - description: OAuth state
+        in: query
+        name: state
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_auth.TokenResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/fixapp_pkg_response.Error'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/fixapp_pkg_response.Error'
+      summary: OAuth callback handler
+      tags:
+      - auth
+  /auth/{provider}/login:
+    get:
+      description: Returns the OAuth authorization URL for the specified provider
+      parameters:
+      - description: Provider name (google, facebook)
+        in: path
+        name: provider
+        required: true
+        type: string
+      - description: URL to redirect after login
+        in: query
+        name: redirect
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_auth.LoginResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/fixapp_pkg_response.Error'
+      summary: Start OAuth login flow
+      tags:
+      - auth
+  /auth/logout:
+    post:
+      description: Invalidates the current session (client should discard tokens)
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/fixapp_pkg_response.Success'
+      summary: Logout user
+      tags:
+      - auth
+  /auth/providers:
+    get:
+      description: Returns a list of available authentication providers
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_auth.ProvidersResponse'
+      summary: List available auth providers
+      tags:
+      - auth
+  /auth/refresh:
+    post:
+      consumes:
+      - application/json
+      description: Exchange a refresh token for a new access token
+      parameters:
+      - description: Refresh token
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/internal_auth.RefreshTokenRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_auth.TokenResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/fixapp_pkg_response.Error'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/fixapp_pkg_response.Error'
+      summary: Refresh access token
+      tags:
+      - auth
   /healthz:
     get:
       consumes:
@@ -45,10 +505,66 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/health.healthResponse'
+            $ref: '#/definitions/internal_health.healthResponse'
       summary: Health check
       tags:
       - monitoring
+  /profile:
+    get:
+      consumes:
+      - application/json
+      description: Returns the profile of the authenticated user
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_user.ProfileResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/fixapp_pkg_response.Error'
+      security:
+      - BearerAuth: []
+      summary: Get current user's profile
+      tags:
+      - profile
+    patch:
+      consumes:
+      - application/json
+      description: Updates the profile of the authenticated user
+      parameters:
+      - description: Profile update
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/internal_user.UpdateProfileRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_user.ProfileResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/fixapp_pkg_response.Error'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/fixapp_pkg_response.Error'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/fixapp_pkg_response.ValidationError'
+      security:
+      - BearerAuth: []
+      summary: Update current user's profile
+      tags:
+      - profile
   /ready:
     get:
       consumes:
@@ -60,7 +576,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/health.readinessResponse'
+            $ref: '#/definitions/internal_health.readinessResponse'
       summary: Readiness check
       tags:
       - monitoring

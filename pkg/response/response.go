@@ -77,6 +77,15 @@ func Unauthorized(w http.ResponseWriter, message string) {
 	})
 }
 
+// UnauthorizedWithCode sends a 401 Unauthorized error with a specific code
+func UnauthorizedWithCode(w http.ResponseWriter, message, code string) {
+	JSON(w, http.StatusUnauthorized, Error{
+		Success: false,
+		Error:   message,
+		Code:    code,
+	})
+}
+
 // Forbidden sends a 403 Forbidden error
 func Forbidden(w http.ResponseWriter, message string) {
 	JSON(w, http.StatusForbidden, Error{
@@ -85,6 +94,34 @@ func Forbidden(w http.ResponseWriter, message string) {
 		Code:    "FORBIDDEN",
 	})
 }
+
+// ForbiddenWithCode sends a 403 Forbidden error with a specific code
+func ForbiddenWithCode(w http.ResponseWriter, message, code string) {
+	JSON(w, http.StatusForbidden, Error{
+		Success: false,
+		Error:   message,
+		Code:    code,
+	})
+}
+
+// Auth-specific error codes
+const (
+	// Authentication errors
+	CodeAuthRequired       = "AUTH_REQUIRED"
+	CodeTokenExpired       = "TOKEN_EXPIRED"
+	CodeTokenInvalid       = "TOKEN_INVALID"
+	CodeTokenMissing       = "TOKEN_MISSING"
+	CodeSessionExpired     = "SESSION_EXPIRED"
+	CodeInvalidCredentials = "INVALID_CREDENTIALS"
+
+	// Authorization errors
+	CodeInsufficientRole  = "INSUFFICIENT_ROLE"
+	CodeMissingPermission = "MISSING_PERMISSION"
+	CodeAccessDenied      = "ACCESS_DENIED"
+	CodeResourceNotOwned  = "RESOURCE_NOT_OWNED"
+	CodeAccountDisabled   = "ACCOUNT_DISABLED"
+	CodeEmailNotVerified  = "EMAIL_NOT_VERIFIED"
+)
 
 // NotFound sends a 404 Not Found error
 func NotFound(w http.ResponseWriter, message string) {
