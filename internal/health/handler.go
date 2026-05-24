@@ -1,7 +1,7 @@
 package health
 
 import (
-	"fixapp/pkg/middleware"
+	"fixapp/pkg/ctxlog"
 	"fixapp/pkg/response"
 	"net/http"
 	"time"
@@ -46,7 +46,7 @@ func (h *Handler) Register(mux *http.ServeMux) {
 // @Success      200  {object}  healthResponse
 // @Router       /healthz [get]
 func (h *Handler) healthCheck(w http.ResponseWriter, r *http.Request) {
-	log := middleware.FromContextLogger(r.Context())
+	log := ctxlog.FromContext(r.Context())
 	log.Info("health check")
 
 	response.JSON(w, http.StatusOK, healthResponse{
@@ -66,7 +66,7 @@ func (h *Handler) healthCheck(w http.ResponseWriter, r *http.Request) {
 // @Success      200  {object}  readinessResponse
 // @Router       /ready [get]
 func (h *Handler) readinessCheck(w http.ResponseWriter, r *http.Request) {
-	log := middleware.FromContextLogger(r.Context())
+	log := ctxlog.FromContext(r.Context())
 	log.Info("readiness check")
 
 	response.JSON(w, http.StatusOK, readinessResponse{
