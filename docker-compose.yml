@@ -1,12 +1,34 @@
-version: "3.9"
 services:
+  api:
+    build: .
+    ports: ["8080:8080"]
+    environment:
+      PORT: "8080"
+      DB_HOST: db
+      DB_PORT: "5432"
+      DB_USER: fixapp
+      DB_PASSWORD: fixapp
+      DB_NAME: fixapp
+      DB_SSLMODE: disable
+      JWT_SECRET: dev-secret-change-in-production
+      LOG_LEVEL: debug
+    depends_on:
+      db:
+        condition: service_healthy
+
   db:
-    image: postgres:16
+    image: postgres:16-alpine
     environment:
       POSTGRES_USER: fixapp
       POSTGRES_PASSWORD: fixapp
       POSTGRES_DB: fixapp
     ports: ["5432:5432"]
     volumes: [dbdata:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fixapp"]
+      interval: 2s
+      timeout: 5s
+      retries: 5
+
 volumes:
   dbdata: {}

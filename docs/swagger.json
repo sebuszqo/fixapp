@@ -17,6 +17,84 @@
     "host": "localhost:8080",
     "basePath": "/",
     "paths": {
+        "/admin/jobs": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns a paginated list of all jobs (admin only)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin"
+                ],
+                "summary": "List all jobs (admin)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Filter by status",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by category",
+                        "name": "category_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by district",
+                        "name": "district_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by client",
+                        "name": "client_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Limit (default 20, max 100)",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Offset (default 0)",
+                        "name": "offset",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/job.JobListResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/response.Error"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/response.Error"
+                        }
+                    }
+                }
+            }
+        },
         "/admin/users": {
             "get": {
                 "security": [
@@ -71,19 +149,19 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/internal_user.UserListResponse"
+                            "$ref": "#/definitions/user.UserListResponse"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/fixapp_pkg_response.Error"
+                            "$ref": "#/definitions/response.Error"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/fixapp_pkg_response.Error"
+                            "$ref": "#/definitions/response.Error"
                         }
                     }
                 }
@@ -120,25 +198,25 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/internal_user.UserResponse"
+                            "$ref": "#/definitions/user.UserResponse"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/fixapp_pkg_response.Error"
+                            "$ref": "#/definitions/response.Error"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/fixapp_pkg_response.Error"
+                            "$ref": "#/definitions/response.Error"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/fixapp_pkg_response.Error"
+                            "$ref": "#/definitions/response.Error"
                         }
                     }
                 }
@@ -176,19 +254,19 @@
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/fixapp_pkg_response.Error"
+                            "$ref": "#/definitions/response.Error"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/fixapp_pkg_response.Error"
+                            "$ref": "#/definitions/response.Error"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/fixapp_pkg_response.Error"
+                            "$ref": "#/definitions/response.Error"
                         }
                     }
                 }
@@ -226,7 +304,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_user.UpdateRoleRequest"
+                            "$ref": "#/definitions/user.UpdateRoleRequest"
                         }
                     }
                 ],
@@ -234,37 +312,161 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/fixapp_pkg_response.Success"
+                            "$ref": "#/definitions/response.Success"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/fixapp_pkg_response.Error"
+                            "$ref": "#/definitions/response.Error"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/fixapp_pkg_response.Error"
+                            "$ref": "#/definitions/response.Error"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/fixapp_pkg_response.Error"
+                            "$ref": "#/definitions/response.Error"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/fixapp_pkg_response.Error"
+                            "$ref": "#/definitions/response.Error"
                         }
                     },
                     "422": {
                         "description": "Unprocessable Entity",
                         "schema": {
-                            "$ref": "#/definitions/fixapp_pkg_response.ValidationError"
+                            "$ref": "#/definitions/response.ValidationError"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/wallet/top-up": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Adds credits to a user's wallet (admin only)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin"
+                ],
+                "summary": "Top up user wallet (admin)",
+                "parameters": [
+                    {
+                        "description": "Top-up details",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/wallet.AdminTopUpRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/wallet.WalletResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.Error"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/response.Error"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/response.Error"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/response.Error"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
+                        "schema": {
+                            "$ref": "#/definitions/response.ValidationError"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/wallet/{user_id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns a user's wallet balance (admin only)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin"
+                ],
+                "summary": "Get user wallet (admin)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "User ID",
+                        "name": "user_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/wallet.WalletResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/response.Error"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/response.Error"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/response.Error"
                         }
                     }
                 }
@@ -272,7 +474,7 @@
         },
         "/auth/logout": {
             "post": {
-                "description": "Invalidates the current session (client should discard tokens)",
+                "description": "Clears the refresh token cookie and invalidates the session",
                 "produces": [
                     "application/json"
                 ],
@@ -284,7 +486,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/fixapp_pkg_response.Success"
+                            "$ref": "#/definitions/response.Success"
                         }
                     }
                 }
@@ -304,7 +506,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/internal_auth.ProvidersResponse"
+                            "$ref": "#/definitions/auth.ProvidersResponse"
                         }
                     }
                 }
@@ -312,7 +514,7 @@
         },
         "/auth/refresh": {
             "post": {
-                "description": "Exchange a refresh token for a new access token",
+                "description": "Exchange a refresh token for a new access token. Refresh token can come from HttpOnly cookie (web) or request body (mobile).",
                 "consumes": [
                     "application/json"
                 ],
@@ -325,12 +527,11 @@
                 "summary": "Refresh access token",
                 "parameters": [
                     {
-                        "description": "Refresh token",
+                        "description": "Refresh token (optional, for mobile apps)",
                         "name": "body",
                         "in": "body",
-                        "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_auth.RefreshTokenRequest"
+                            "$ref": "#/definitions/auth.RefreshTokenRequest"
                         }
                     }
                 ],
@@ -338,19 +539,19 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/internal_auth.TokenResponse"
+                            "$ref": "#/definitions/auth.TokenResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/fixapp_pkg_response.Error"
+                            "$ref": "#/definitions/response.Error"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/fixapp_pkg_response.Error"
+                            "$ref": "#/definitions/response.Error"
                         }
                     }
                 }
@@ -393,19 +594,19 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/internal_auth.TokenResponse"
+                            "$ref": "#/definitions/auth.TokenResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/fixapp_pkg_response.Error"
+                            "$ref": "#/definitions/response.Error"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/fixapp_pkg_response.Error"
+                            "$ref": "#/definitions/response.Error"
                         }
                     }
                 }
@@ -434,19 +635,471 @@
                         "description": "URL to redirect after login",
                         "name": "redirect",
                         "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Register as: 'user' (default) or 'handyman'",
+                        "name": "as",
+                        "in": "query"
                     }
                 ],
                 "responses": {
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/internal_auth.LoginResponse"
+                            "$ref": "#/definitions/auth.LoginResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/fixapp_pkg_response.Error"
+                            "$ref": "#/definitions/response.Error"
+                        }
+                    }
+                }
+            }
+        },
+        "/categories": {
+            "get": {
+                "description": "Returns all active service categories",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "catalog"
+                ],
+                "summary": "List service categories",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/catalog.CategoriesListResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/districts": {
+            "get": {
+                "description": "Returns all active districts",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "catalog"
+                ],
+                "summary": "List districts",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/catalog.DistrictsListResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/handyman/portfolio": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Adds a new photo to the handyman's portfolio",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "handyman-profile"
+                ],
+                "summary": "Add portfolio photo",
+                "parameters": [
+                    {
+                        "description": "Portfolio item",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handyman.AddPortfolioRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/handyman.PortfolioItemResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.Error"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/response.Error"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
+                        "schema": {
+                            "$ref": "#/definitions/response.ValidationError"
+                        }
+                    }
+                }
+            }
+        },
+        "/handyman/portfolio/{id}": {
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Removes a photo from the handyman's portfolio",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "handyman-profile"
+                ],
+                "summary": "Delete portfolio photo",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Portfolio item ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/response.Error"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/response.Error"
+                        }
+                    }
+                }
+            }
+        },
+        "/handyman/pricing": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Adds a new service pricing item to the handyman's profile",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "handyman-profile"
+                ],
+                "summary": "Add pricing item",
+                "parameters": [
+                    {
+                        "description": "Pricing item",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handyman.CreatePricingRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/handyman.PricingItemResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.Error"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/response.Error"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
+                        "schema": {
+                            "$ref": "#/definitions/response.ValidationError"
+                        }
+                    }
+                }
+            }
+        },
+        "/handyman/pricing/{id}": {
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Removes a pricing item from the handyman's profile",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "handyman-profile"
+                ],
+                "summary": "Delete pricing item",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Pricing item ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/response.Error"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/response.Error"
+                        }
+                    }
+                }
+            }
+        },
+        "/handyman/profile": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns the authenticated handyman's full profile",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "handyman-profile"
+                ],
+                "summary": "Get my handyman profile",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handyman.FullProfileResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/response.Error"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/response.Error"
+                        }
+                    }
+                }
+            },
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Updates the authenticated handyman's profile",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "handyman-profile"
+                ],
+                "summary": "Update my handyman profile",
+                "parameters": [
+                    {
+                        "description": "Profile update",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handyman.UpdateProfileRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handyman.ProfileResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.Error"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/response.Error"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
+                        "schema": {
+                            "$ref": "#/definitions/response.ValidationError"
+                        }
+                    }
+                }
+            }
+        },
+        "/handymen": {
+            "get": {
+                "description": "Search for available handyman profiles with filters",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "handymen"
+                ],
+                "summary": "Search handymen",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Filter by category ID",
+                        "name": "category_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by district ID",
+                        "name": "district_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "Filter by verification status",
+                        "name": "verified",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Search by name or bio",
+                        "name": "search",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Limit (default 20, max 100)",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Offset (default 0)",
+                        "name": "offset",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handyman.ProfileListResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/handymen/{id}": {
+            "get": {
+                "description": "Returns a handyman's full public profile with pricing and portfolio",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "handymen"
+                ],
+                "summary": "Get handyman public profile",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Profile ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handyman.FullProfileResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/response.Error"
                         }
                     }
                 }
@@ -469,7 +1122,719 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/internal_health.healthResponse"
+                            "$ref": "#/definitions/health.healthResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/jobs": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns the authenticated user's jobs with optional status filter",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "jobs"
+                ],
+                "summary": "List my jobs",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Filter by status (draft, active, accepted, in_progress, done, cancelled)",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Limit (default 20, max 100)",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Offset (default 0)",
+                        "name": "offset",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/job.JobListResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/response.Error"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Creates a new service request (job) for the authenticated client",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "jobs"
+                ],
+                "summary": "Create a new job",
+                "parameters": [
+                    {
+                        "description": "Job details",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/job.CreateJobRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/job.JobResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.Error"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/response.Error"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
+                        "schema": {
+                            "$ref": "#/definitions/response.ValidationError"
+                        }
+                    }
+                }
+            }
+        },
+        "/jobs/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns a job by its ID",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "jobs"
+                ],
+                "summary": "Get job by ID",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Job ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/job.JobResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/response.Error"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/response.Error"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/response.Error"
+                        }
+                    }
+                }
+            }
+        },
+        "/jobs/{id}/cancel": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Cancels a job (client can cancel their own, admin can cancel any)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "jobs"
+                ],
+                "summary": "Cancel a job",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Job ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/job.JobResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.Error"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/response.Error"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/response.Error"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/response.Error"
+                        }
+                    }
+                }
+            }
+        },
+        "/jobs/{id}/complete": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Marks a job as done with a declared final value (handyman only)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "jobs"
+                ],
+                "summary": "Complete a job",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Job ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Completion details",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/job.CompleteJobRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/job.JobResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.Error"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/response.Error"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/response.Error"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/response.Error"
+                        }
+                    }
+                }
+            }
+        },
+        "/jobs/{id}/confirm": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Client confirms that the job was completed successfully",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "jobs"
+                ],
+                "summary": "Confirm job completion",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Job ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/job.JobResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.Error"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/response.Error"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/response.Error"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/response.Error"
+                        }
+                    }
+                }
+            }
+        },
+        "/jobs/{id}/publish": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Moves a draft job to active status, making it visible to handymen",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "jobs"
+                ],
+                "summary": "Publish a job",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Job ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/job.JobResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.Error"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/response.Error"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/response.Error"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/response.Error"
+                        }
+                    }
+                }
+            }
+        },
+        "/jobs/{id}/reviews": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns all reviews for a specific completed job",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "reviews"
+                ],
+                "summary": "List reviews for a job",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Job ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/review.ReviewResponse"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.Error"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/response.Error"
+                        }
+                    }
+                }
+            }
+        },
+        "/leads": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns the authenticated handyman's leads with optional status filter",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "leads"
+                ],
+                "summary": "List my leads",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Filter by status (pending, accepted, rejected, expired)",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Limit (default 20, max 100)",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Offset (default 0)",
+                        "name": "offset",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/lead.LeadListResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/response.Error"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/response.Error"
+                        }
+                    }
+                }
+            }
+        },
+        "/leads/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns a lead with full job details",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "leads"
+                ],
+                "summary": "Get lead details",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Lead ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/lead.LeadDetailResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/response.Error"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/response.Error"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/response.Error"
+                        }
+                    }
+                }
+            }
+        },
+        "/leads/{id}/accept": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Accepts a lead, deducting credits and updating the job status",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "leads"
+                ],
+                "summary": "Accept a lead",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Lead ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/lead.LeadResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.Error"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/response.Error"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/response.Error"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/response.Error"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/response.Error"
+                        }
+                    }
+                }
+            }
+        },
+        "/leads/{id}/reject": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Rejects a lead (no credits are charged)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "leads"
+                ],
+                "summary": "Reject a lead",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Lead ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/lead.LeadResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.Error"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/response.Error"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/response.Error"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/response.Error"
                         }
                     }
                 }
@@ -497,13 +1862,13 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/internal_user.ProfileResponse"
+                            "$ref": "#/definitions/user.ProfileResponse"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/fixapp_pkg_response.Error"
+                            "$ref": "#/definitions/response.Error"
                         }
                     }
                 }
@@ -532,7 +1897,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_user.UpdateProfileRequest"
+                            "$ref": "#/definitions/user.UpdateProfileRequest"
                         }
                     }
                 ],
@@ -540,25 +1905,25 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/internal_user.ProfileResponse"
+                            "$ref": "#/definitions/user.ProfileResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/fixapp_pkg_response.Error"
+                            "$ref": "#/definitions/response.Error"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/fixapp_pkg_response.Error"
+                            "$ref": "#/definitions/response.Error"
                         }
                     },
                     "422": {
                         "description": "Unprocessable Entity",
                         "schema": {
-                            "$ref": "#/definitions/fixapp_pkg_response.ValidationError"
+                            "$ref": "#/definitions/response.ValidationError"
                         }
                     }
                 }
@@ -581,7 +1946,332 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/internal_health.readinessResponse"
+                            "$ref": "#/definitions/health.readinessResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/reviews": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Submit a review for a completed job. Clients review handymen, handymen review clients.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "reviews"
+                ],
+                "summary": "Create a review",
+                "parameters": [
+                    {
+                        "description": "Review data",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/review.CreateReviewRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/review.ReviewResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.Error"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/response.Error"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/response.Error"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/response.Error"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/response.Error"
+                        }
+                    }
+                }
+            }
+        },
+        "/score/commit": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns the authenticated client's Commit Score with breakdown",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "scoring"
+                ],
+                "summary": "Get my Commit Score",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/scoring.CommitScoreResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/response.Error"
+                        }
+                    }
+                }
+            }
+        },
+        "/score/pro": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns the authenticated handyman's ProScore with breakdown",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "scoring"
+                ],
+                "summary": "Get my ProScore",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/scoring.ProScoreResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/response.Error"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/response.Error"
+                        }
+                    }
+                }
+            }
+        },
+        "/users/{id}/rating": {
+            "get": {
+                "description": "Returns average rating and total review count for a user",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "reviews"
+                ],
+                "summary": "Get rating summary for a user",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "User ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/review.RatingSummaryResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.Error"
+                        }
+                    }
+                }
+            }
+        },
+        "/users/{id}/reviews": {
+            "get": {
+                "description": "Returns paginated reviews received by a specific user",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "reviews"
+                ],
+                "summary": "List reviews for a user",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "User ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Limit (default 20, max 100)",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Offset (default 0)",
+                        "name": "offset",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/review.ReviewListResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.Error"
+                        }
+                    }
+                }
+            }
+        },
+        "/wallet": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns the authenticated user's wallet balance",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "wallet"
+                ],
+                "summary": "Get my wallet",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/wallet.WalletResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/response.Error"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/response.Error"
+                        }
+                    }
+                }
+            }
+        },
+        "/wallet/transactions": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns the authenticated user's wallet transaction history",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "wallet"
+                ],
+                "summary": "Get my transactions",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Limit (default 20, max 100)",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Offset (default 0)",
+                        "name": "offset",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/wallet.TransactionListResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/response.Error"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/response.Error"
                         }
                     }
                 }
@@ -589,56 +2279,7 @@
         }
     },
     "definitions": {
-        "fixapp_pkg_response.Error": {
-            "type": "object",
-            "properties": {
-                "code": {
-                    "type": "string",
-                    "example": "INVALID_INPUT"
-                },
-                "error": {
-                    "type": "string",
-                    "example": "Invalid request"
-                },
-                "success": {
-                    "type": "boolean",
-                    "example": false
-                }
-            }
-        },
-        "fixapp_pkg_response.Success": {
-            "type": "object",
-            "properties": {
-                "data": {},
-                "message": {
-                    "type": "string"
-                },
-                "success": {
-                    "type": "boolean",
-                    "example": true
-                }
-            }
-        },
-        "fixapp_pkg_response.ValidationError": {
-            "type": "object",
-            "properties": {
-                "error": {
-                    "type": "string",
-                    "example": "Validation failed"
-                },
-                "fields": {
-                    "type": "object",
-                    "additionalProperties": {
-                        "type": "string"
-                    }
-                },
-                "success": {
-                    "type": "boolean",
-                    "example": false
-                }
-            }
-        },
-        "internal_auth.LoginResponse": {
+        "auth.LoginResponse": {
             "type": "object",
             "properties": {
                 "auth_url": {
@@ -651,7 +2292,7 @@
                 }
             }
         },
-        "internal_auth.ProviderInfo": {
+        "auth.ProviderInfo": {
             "type": "object",
             "properties": {
                 "name": {
@@ -664,18 +2305,18 @@
                 }
             }
         },
-        "internal_auth.ProvidersResponse": {
+        "auth.ProvidersResponse": {
             "type": "object",
             "properties": {
                 "providers": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/internal_auth.ProviderInfo"
+                        "$ref": "#/definitions/auth.ProviderInfo"
                     }
                 }
             }
         },
-        "internal_auth.RefreshTokenRequest": {
+        "auth.RefreshTokenRequest": {
             "type": "object",
             "properties": {
                 "refresh_token": {
@@ -683,7 +2324,7 @@
                 }
             }
         },
-        "internal_auth.TokenResponse": {
+        "auth.TokenResponse": {
             "type": "object",
             "properties": {
                 "access_token": {
@@ -696,16 +2337,418 @@
                 "redirect_url": {
                     "type": "string"
                 },
-                "refresh_token": {
-                    "type": "string"
-                },
                 "token_type": {
                     "type": "string",
                     "example": "Bearer"
                 }
             }
         },
-        "internal_health.healthResponse": {
+        "catalog.CategoriesListResponse": {
+            "description": "List of service categories",
+            "type": "object",
+            "properties": {
+                "categories": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/catalog.CategoryResponse"
+                    }
+                }
+            }
+        },
+        "catalog.CategoryResponse": {
+            "description": "Service category",
+            "type": "object",
+            "properties": {
+                "base_price": {
+                    "type": "integer",
+                    "example": 28
+                },
+                "icon": {
+                    "type": "string",
+                    "example": "wrench"
+                },
+                "id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                },
+                "name": {
+                    "type": "string",
+                    "example": "Hydraulik"
+                },
+                "slug": {
+                    "type": "string",
+                    "example": "hydraulik"
+                }
+            }
+        },
+        "catalog.DistrictResponse": {
+            "description": "District/area",
+            "type": "object",
+            "properties": {
+                "city_name": {
+                    "type": "string",
+                    "example": "Krakow"
+                },
+                "id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                },
+                "name": {
+                    "type": "string",
+                    "example": "Krowodrza"
+                },
+                "slug": {
+                    "type": "string",
+                    "example": "krowodrza"
+                }
+            }
+        },
+        "catalog.DistrictsListResponse": {
+            "description": "List of districts",
+            "type": "object",
+            "properties": {
+                "districts": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/catalog.DistrictResponse"
+                    }
+                }
+            }
+        },
+        "handyman.AddPortfolioRequest": {
+            "description": "Add portfolio item",
+            "type": "object",
+            "properties": {
+                "caption": {
+                    "type": "string",
+                    "example": "Remont lazienki"
+                },
+                "image_url": {
+                    "type": "string",
+                    "example": "https://example.com/photo.jpg"
+                },
+                "sort_order": {
+                    "type": "integer",
+                    "example": 0
+                }
+            }
+        },
+        "handyman.CreatePricingRequest": {
+            "description": "Create pricing item",
+            "type": "object",
+            "properties": {
+                "price_from": {
+                    "type": "integer",
+                    "example": 100
+                },
+                "price_to": {
+                    "type": "integer",
+                    "example": 200
+                },
+                "service_name": {
+                    "type": "string",
+                    "example": "Wymiana kranu"
+                },
+                "sort_order": {
+                    "type": "integer",
+                    "example": 0
+                },
+                "unit": {
+                    "type": "string",
+                    "example": "per service"
+                }
+            }
+        },
+        "handyman.FullProfileResponse": {
+            "description": "Full handyman profile with pricing and portfolio",
+            "type": "object",
+            "properties": {
+                "avatar_url": {
+                    "type": "string",
+                    "example": "https://example.com/avatar.jpg"
+                },
+                "bio": {
+                    "type": "string",
+                    "example": "Hydraulik z 10-letnim doswiadczeniem"
+                },
+                "categories": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "company_name": {
+                    "type": "string",
+                    "example": "Jan Kowalski Hydraulika"
+                },
+                "completion_pct": {
+                    "type": "integer",
+                    "example": 85
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "districts": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "email": {
+                    "type": "string",
+                    "example": "jan@example.com"
+                },
+                "emergency_available": {
+                    "type": "boolean",
+                    "example": false
+                },
+                "id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                },
+                "is_available": {
+                    "type": "boolean",
+                    "example": true
+                },
+                "is_verified": {
+                    "type": "boolean",
+                    "example": true
+                },
+                "nip": {
+                    "type": "string",
+                    "example": "1234567890"
+                },
+                "phone": {
+                    "type": "string",
+                    "example": "+48123456789"
+                },
+                "portfolio": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/handyman.PortfolioItemResponse"
+                    }
+                },
+                "pricing": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/handyman.PricingItemResponse"
+                    }
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "user_id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440001"
+                }
+            }
+        },
+        "handyman.PortfolioItemResponse": {
+            "description": "Portfolio item",
+            "type": "object",
+            "properties": {
+                "caption": {
+                    "type": "string",
+                    "example": "Remont lazienki"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                },
+                "image_url": {
+                    "type": "string",
+                    "example": "https://example.com/photo.jpg"
+                },
+                "sort_order": {
+                    "type": "integer",
+                    "example": 0
+                }
+            }
+        },
+        "handyman.PricingItemResponse": {
+            "description": "Pricing list item",
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                },
+                "price_from": {
+                    "type": "integer",
+                    "example": 100
+                },
+                "price_to": {
+                    "type": "integer",
+                    "example": 200
+                },
+                "service_name": {
+                    "type": "string",
+                    "example": "Wymiana kranu"
+                },
+                "sort_order": {
+                    "type": "integer",
+                    "example": 0
+                },
+                "unit": {
+                    "type": "string",
+                    "example": "per service"
+                }
+            }
+        },
+        "handyman.ProfileListResponse": {
+            "description": "Paginated handyman profile list",
+            "type": "object",
+            "properties": {
+                "has_more": {
+                    "type": "boolean",
+                    "example": true
+                },
+                "limit": {
+                    "type": "integer",
+                    "example": 20
+                },
+                "offset": {
+                    "type": "integer",
+                    "example": 0
+                },
+                "profiles": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/handyman.ProfileResponse"
+                    }
+                },
+                "total": {
+                    "type": "integer",
+                    "example": 50
+                }
+            }
+        },
+        "handyman.ProfileResponse": {
+            "description": "Handyman profile information",
+            "type": "object",
+            "properties": {
+                "avatar_url": {
+                    "type": "string",
+                    "example": "https://example.com/avatar.jpg"
+                },
+                "bio": {
+                    "type": "string",
+                    "example": "Hydraulik z 10-letnim doswiadczeniem"
+                },
+                "categories": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "company_name": {
+                    "type": "string",
+                    "example": "Jan Kowalski Hydraulika"
+                },
+                "completion_pct": {
+                    "type": "integer",
+                    "example": 85
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "districts": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "email": {
+                    "type": "string",
+                    "example": "jan@example.com"
+                },
+                "emergency_available": {
+                    "type": "boolean",
+                    "example": false
+                },
+                "id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                },
+                "is_available": {
+                    "type": "boolean",
+                    "example": true
+                },
+                "is_verified": {
+                    "type": "boolean",
+                    "example": true
+                },
+                "nip": {
+                    "type": "string",
+                    "example": "1234567890"
+                },
+                "phone": {
+                    "type": "string",
+                    "example": "+48123456789"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "user_id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440001"
+                }
+            }
+        },
+        "handyman.UpdateProfileRequest": {
+            "description": "Update handyman profile",
+            "type": "object",
+            "properties": {
+                "avatar_url": {
+                    "type": "string",
+                    "example": "https://example.com/avatar.jpg"
+                },
+                "bio": {
+                    "type": "string",
+                    "example": "Hydraulik z 10-letnim doswiadczeniem"
+                },
+                "categories": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "company_name": {
+                    "type": "string",
+                    "example": "Jan Kowalski Hydraulika"
+                },
+                "districts": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "email": {
+                    "type": "string",
+                    "example": "jan@example.com"
+                },
+                "emergency_available": {
+                    "type": "boolean",
+                    "example": false
+                },
+                "is_available": {
+                    "type": "boolean",
+                    "example": true
+                },
+                "nip": {
+                    "type": "string",
+                    "example": "1234567890"
+                },
+                "phone": {
+                    "type": "string",
+                    "example": "+48123456789"
+                }
+            }
+        },
+        "health.healthResponse": {
             "type": "object",
             "properties": {
                 "started": {
@@ -726,7 +2769,7 @@
                 }
             }
         },
-        "internal_health.readinessResponse": {
+        "health.readinessResponse": {
             "type": "object",
             "properties": {
                 "status": {
@@ -735,7 +2778,683 @@
                 }
             }
         },
-        "internal_user.ProfileResponse": {
+        "job.CompleteJobRequest": {
+            "description": "Complete job request",
+            "type": "object",
+            "properties": {
+                "final_value": {
+                    "type": "integer",
+                    "example": 280
+                }
+            }
+        },
+        "job.CreateJobRequest": {
+            "description": "Create job request",
+            "type": "object",
+            "properties": {
+                "address": {
+                    "type": "string",
+                    "example": "ul. Krolewska 10/5"
+                },
+                "budget": {
+                    "type": "integer",
+                    "example": 200
+                },
+                "building_type": {
+                    "type": "string",
+                    "example": "apartment"
+                },
+                "category_id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440002"
+                },
+                "contact_method": {
+                    "type": "string",
+                    "example": "phone"
+                },
+                "description": {
+                    "type": "string",
+                    "example": "Kran cieknie od tygodnia"
+                },
+                "district_id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440003"
+                },
+                "floor": {
+                    "type": "integer",
+                    "example": 3
+                },
+                "has_elevator": {
+                    "type": "boolean",
+                    "example": true
+                },
+                "photo_urls": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "preferred_date1": {
+                    "type": "string"
+                },
+                "preferred_date2": {
+                    "type": "string"
+                },
+                "preferred_time": {
+                    "type": "string",
+                    "example": "morning"
+                },
+                "title": {
+                    "type": "string",
+                    "example": "Cieknacy kran w kuchni"
+                },
+                "urgency": {
+                    "type": "string",
+                    "example": "normal"
+                },
+                "wants_invoice": {
+                    "type": "boolean",
+                    "example": false
+                }
+            }
+        },
+        "job.JobListResponse": {
+            "description": "Paginated job list",
+            "type": "object",
+            "properties": {
+                "has_more": {
+                    "type": "boolean",
+                    "example": true
+                },
+                "jobs": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/job.JobResponse"
+                    }
+                },
+                "limit": {
+                    "type": "integer",
+                    "example": 20
+                },
+                "offset": {
+                    "type": "integer",
+                    "example": 0
+                },
+                "total": {
+                    "type": "integer",
+                    "example": 50
+                }
+            }
+        },
+        "job.JobResponse": {
+            "description": "Job information",
+            "type": "object",
+            "properties": {
+                "address": {
+                    "type": "string",
+                    "example": "ul. Krolewska 10/5"
+                },
+                "budget": {
+                    "type": "integer",
+                    "example": 200
+                },
+                "building_type": {
+                    "type": "string",
+                    "example": "apartment"
+                },
+                "category_id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440002"
+                },
+                "client_confirmed": {
+                    "type": "boolean"
+                },
+                "client_id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440001"
+                },
+                "completed_at": {
+                    "type": "string"
+                },
+                "completed_by_id": {
+                    "type": "string"
+                },
+                "contact_method": {
+                    "type": "string",
+                    "example": "phone"
+                },
+                "created_at": {
+                    "type": "string",
+                    "example": "2025-01-10T12:00:00Z"
+                },
+                "description": {
+                    "type": "string",
+                    "example": "Kran cieknie od tygodnia, potrzebna wymiana uszczelki"
+                },
+                "district_id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440003"
+                },
+                "expires_at": {
+                    "type": "string"
+                },
+                "final_value": {
+                    "type": "integer",
+                    "example": 280
+                },
+                "floor": {
+                    "type": "integer",
+                    "example": 3
+                },
+                "has_elevator": {
+                    "type": "boolean",
+                    "example": true
+                },
+                "id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                },
+                "photo_urls": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "preferred_date1": {
+                    "type": "string"
+                },
+                "preferred_date2": {
+                    "type": "string"
+                },
+                "preferred_time": {
+                    "type": "string",
+                    "example": "morning"
+                },
+                "status": {
+                    "type": "string",
+                    "example": "active"
+                },
+                "title": {
+                    "type": "string",
+                    "example": "Cieknacy kran w kuchni"
+                },
+                "updated_at": {
+                    "type": "string",
+                    "example": "2025-01-10T12:00:00Z"
+                },
+                "urgency": {
+                    "type": "string",
+                    "example": "normal"
+                },
+                "wants_invoice": {
+                    "type": "boolean",
+                    "example": false
+                }
+            }
+        },
+        "lead.LeadDetailResponse": {
+            "description": "Lead with job details",
+            "type": "object",
+            "properties": {
+                "accepted_at": {
+                    "type": "string"
+                },
+                "client_commit_score": {
+                    "type": "integer",
+                    "example": 85
+                },
+                "created_at": {
+                    "type": "string",
+                    "example": "2025-01-10T12:00:00Z"
+                },
+                "expires_at": {
+                    "type": "string",
+                    "example": "2025-01-11T12:00:00Z"
+                },
+                "handyman_id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440002"
+                },
+                "id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                },
+                "job": {
+                    "$ref": "#/definitions/lead.LeadJobInfo"
+                },
+                "job_id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440001"
+                },
+                "price": {
+                    "type": "integer",
+                    "example": 22
+                },
+                "rejected_at": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string",
+                    "example": "pending"
+                },
+                "updated_at": {
+                    "type": "string",
+                    "example": "2025-01-10T12:00:00Z"
+                }
+            }
+        },
+        "lead.LeadJobInfo": {
+            "description": "Job info visible on a lead",
+            "type": "object",
+            "properties": {
+                "address": {
+                    "description": "Address is only revealed after acceptance",
+                    "type": "string",
+                    "example": "ul. Krolewska 10/5"
+                },
+                "budget": {
+                    "type": "integer"
+                },
+                "building_type": {
+                    "type": "string",
+                    "example": "apartment"
+                },
+                "category_id": {
+                    "type": "string"
+                },
+                "contact_method": {
+                    "type": "string",
+                    "example": "phone"
+                },
+                "description": {
+                    "type": "string",
+                    "example": "Kran cieknie od tygodnia"
+                },
+                "district_id": {
+                    "type": "string"
+                },
+                "floor": {
+                    "type": "integer"
+                },
+                "has_elevator": {
+                    "type": "boolean"
+                },
+                "photo_urls": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "preferred_date1": {
+                    "type": "string"
+                },
+                "preferred_date2": {
+                    "type": "string"
+                },
+                "preferred_time": {
+                    "type": "string",
+                    "example": "morning"
+                },
+                "title": {
+                    "type": "string",
+                    "example": "Cieknacy kran w kuchni"
+                },
+                "urgency": {
+                    "type": "string",
+                    "example": "normal"
+                }
+            }
+        },
+        "lead.LeadListResponse": {
+            "description": "Paginated lead list",
+            "type": "object",
+            "properties": {
+                "has_more": {
+                    "type": "boolean",
+                    "example": false
+                },
+                "leads": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/lead.LeadResponse"
+                    }
+                },
+                "limit": {
+                    "type": "integer",
+                    "example": 20
+                },
+                "offset": {
+                    "type": "integer",
+                    "example": 0
+                },
+                "total": {
+                    "type": "integer",
+                    "example": 15
+                }
+            }
+        },
+        "lead.LeadResponse": {
+            "description": "Lead information",
+            "type": "object",
+            "properties": {
+                "accepted_at": {
+                    "type": "string"
+                },
+                "client_commit_score": {
+                    "type": "integer",
+                    "example": 85
+                },
+                "created_at": {
+                    "type": "string",
+                    "example": "2025-01-10T12:00:00Z"
+                },
+                "expires_at": {
+                    "type": "string",
+                    "example": "2025-01-11T12:00:00Z"
+                },
+                "handyman_id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440002"
+                },
+                "id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                },
+                "job_id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440001"
+                },
+                "price": {
+                    "type": "integer",
+                    "example": 22
+                },
+                "rejected_at": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string",
+                    "example": "pending"
+                },
+                "updated_at": {
+                    "type": "string",
+                    "example": "2025-01-10T12:00:00Z"
+                }
+            }
+        },
+        "response.Error": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string",
+                    "example": "INVALID_INPUT"
+                },
+                "error": {
+                    "type": "string",
+                    "example": "Invalid request"
+                },
+                "success": {
+                    "type": "boolean",
+                    "example": false
+                }
+            }
+        },
+        "response.Success": {
+            "type": "object",
+            "properties": {
+                "data": {},
+                "message": {
+                    "type": "string"
+                },
+                "success": {
+                    "type": "boolean",
+                    "example": true
+                }
+            }
+        },
+        "response.ValidationError": {
+            "type": "object",
+            "properties": {
+                "error": {
+                    "type": "string",
+                    "example": "Validation failed"
+                },
+                "fields": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "success": {
+                    "type": "boolean",
+                    "example": false
+                }
+            }
+        },
+        "review.CreateReviewRequest": {
+            "description": "Create review request",
+            "type": "object",
+            "properties": {
+                "comment": {
+                    "type": "string",
+                    "example": "Great work, very professional!"
+                },
+                "job_id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                },
+                "rating": {
+                    "type": "integer",
+                    "example": 5
+                }
+            }
+        },
+        "review.RatingSummaryResponse": {
+            "description": "Rating summary",
+            "type": "object",
+            "properties": {
+                "average_rating": {
+                    "type": "number",
+                    "example": 4.7
+                },
+                "total_reviews": {
+                    "type": "integer",
+                    "example": 12
+                }
+            }
+        },
+        "review.ReviewListResponse": {
+            "description": "Paginated review list",
+            "type": "object",
+            "properties": {
+                "has_more": {
+                    "type": "boolean",
+                    "example": false
+                },
+                "limit": {
+                    "type": "integer",
+                    "example": 20
+                },
+                "offset": {
+                    "type": "integer",
+                    "example": 0
+                },
+                "reviews": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/review.ReviewResponse"
+                    }
+                },
+                "total": {
+                    "type": "integer",
+                    "example": 12
+                }
+            }
+        },
+        "review.ReviewResponse": {
+            "description": "Review information",
+            "type": "object",
+            "properties": {
+                "comment": {
+                    "type": "string",
+                    "example": "Great work, very professional!"
+                },
+                "created_at": {
+                    "type": "string",
+                    "example": "2025-01-15T14:30:00Z"
+                },
+                "id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                },
+                "job_id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440001"
+                },
+                "rating": {
+                    "type": "integer",
+                    "example": 5
+                },
+                "reviewee_id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440003"
+                },
+                "reviewer_id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440002"
+                },
+                "type": {
+                    "type": "string",
+                    "example": "client_to_handyman"
+                }
+            }
+        },
+        "scoring.CommitScoreResponse": {
+            "description": "Client Commit Score",
+            "type": "object",
+            "properties": {
+                "client_multiplier": {
+                    "type": "number",
+                    "example": 1
+                },
+                "has_avatar": {
+                    "type": "boolean",
+                    "example": false
+                },
+                "has_job_history": {
+                    "type": "boolean",
+                    "example": true
+                },
+                "jobs_cancelled": {
+                    "type": "integer",
+                    "example": 0
+                },
+                "jobs_completed": {
+                    "description": "Stats",
+                    "type": "integer",
+                    "example": 3
+                },
+                "level": {
+                    "type": "string",
+                    "example": "standard"
+                },
+                "no_excess_cancels": {
+                    "type": "boolean",
+                    "example": true
+                },
+                "no_no_shows": {
+                    "type": "boolean",
+                    "example": true
+                },
+                "no_show_count": {
+                    "type": "integer",
+                    "example": 0
+                },
+                "phone_verified": {
+                    "description": "Breakdown",
+                    "type": "boolean",
+                    "example": true
+                },
+                "profile_complete": {
+                    "type": "boolean",
+                    "example": true
+                },
+                "score": {
+                    "type": "integer",
+                    "example": 75
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "scoring.ProScoreResponse": {
+            "description": "Handyman ProScore",
+            "type": "object",
+            "properties": {
+                "active_last_7_days": {
+                    "type": "boolean",
+                    "example": true
+                },
+                "avg_response_mins": {
+                    "type": "integer",
+                    "example": 45
+                },
+                "badge": {
+                    "type": "string",
+                    "example": "Pro Partner"
+                },
+                "cancelled_after_accept": {
+                    "type": "integer",
+                    "example": 0
+                },
+                "five_star_reviews": {
+                    "type": "integer",
+                    "example": 8
+                },
+                "handyman_multiplier": {
+                    "type": "number",
+                    "example": 0.8
+                },
+                "jobs_completed": {
+                    "description": "Positive factors",
+                    "type": "integer",
+                    "example": 12
+                },
+                "level": {
+                    "type": "string",
+                    "example": "pro_partner"
+                },
+                "low_rating_count": {
+                    "type": "integer",
+                    "example": 0
+                },
+                "no_show_count": {
+                    "description": "Penalties",
+                    "type": "integer",
+                    "example": 0
+                },
+                "portfolio_count": {
+                    "type": "integer",
+                    "example": 6
+                },
+                "profile_complete": {
+                    "type": "boolean",
+                    "example": true
+                },
+                "score": {
+                    "type": "integer",
+                    "example": 847
+                },
+                "slow_response_count": {
+                    "type": "integer",
+                    "example": 1
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "user.ProfileResponse": {
             "description": "Current user's profile",
             "type": "object",
             "properties": {
@@ -765,7 +3484,7 @@
                 }
             }
         },
-        "internal_user.UpdateProfileRequest": {
+        "user.UpdateProfileRequest": {
             "description": "Profile update request",
             "type": "object",
             "properties": {
@@ -783,7 +3502,7 @@
                 }
             }
         },
-        "internal_user.UpdateRoleRequest": {
+        "user.UpdateRoleRequest": {
             "description": "Role update request",
             "type": "object",
             "properties": {
@@ -793,7 +3512,7 @@
                 }
             }
         },
-        "internal_user.UserListResponse": {
+        "user.UserListResponse": {
             "description": "Paginated user list",
             "type": "object",
             "properties": {
@@ -816,12 +3535,12 @@
                 "users": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/internal_user.UserResponse"
+                        "$ref": "#/definitions/user.UserResponse"
                     }
                 }
             }
         },
-        "internal_user.UserResponse": {
+        "user.UserResponse": {
             "description": "User information",
             "type": "object",
             "properties": {
@@ -868,6 +3587,116 @@
                 "role": {
                     "type": "string",
                     "example": "user"
+                }
+            }
+        },
+        "wallet.AdminTopUpRequest": {
+            "description": "Admin top-up request",
+            "type": "object",
+            "properties": {
+                "amount": {
+                    "type": "integer",
+                    "example": 100
+                },
+                "description": {
+                    "type": "string",
+                    "example": "Package purchase: Starter 100 PLN"
+                },
+                "user_id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440001"
+                }
+            }
+        },
+        "wallet.TransactionListResponse": {
+            "description": "Paginated transaction list",
+            "type": "object",
+            "properties": {
+                "has_more": {
+                    "type": "boolean",
+                    "example": true
+                },
+                "limit": {
+                    "type": "integer",
+                    "example": 20
+                },
+                "offset": {
+                    "type": "integer",
+                    "example": 0
+                },
+                "total": {
+                    "type": "integer",
+                    "example": 25
+                },
+                "transactions": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/wallet.TransactionResponse"
+                    }
+                }
+            }
+        },
+        "wallet.TransactionResponse": {
+            "description": "Wallet transaction record",
+            "type": "object",
+            "properties": {
+                "amount": {
+                    "type": "integer",
+                    "example": 22
+                },
+                "balance_after": {
+                    "type": "integer",
+                    "example": 65
+                },
+                "created_at": {
+                    "type": "string",
+                    "example": "2025-01-15T14:30:00Z"
+                },
+                "description": {
+                    "type": "string",
+                    "example": "Lead accepted: Hydraulik - Krowodrza"
+                },
+                "id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                },
+                "reason": {
+                    "type": "string",
+                    "example": "lead_accepted"
+                },
+                "reference_id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440002"
+                },
+                "type": {
+                    "type": "string",
+                    "example": "debit"
+                }
+            }
+        },
+        "wallet.WalletResponse": {
+            "description": "Wallet balance information",
+            "type": "object",
+            "properties": {
+                "balance": {
+                    "type": "integer",
+                    "example": 87
+                },
+                "created_at": {
+                    "type": "string",
+                    "example": "2025-01-10T12:00:00Z"
+                },
+                "id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                },
+                "updated_at": {
+                    "type": "string",
+                    "example": "2025-01-15T14:30:00Z"
+                },
+                "user_id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440001"
                 }
             }
         }
