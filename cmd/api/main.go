@@ -14,8 +14,16 @@ import (
 	"fixapp/internal/auth"
 	"fixapp/internal/auth/provider"
 	"fixapp/internal/auth/token"
+	"fixapp/internal/catalog"
+	"fixapp/internal/dispatch"
+	"fixapp/internal/handyman"
 	"fixapp/internal/health"
+	"fixapp/internal/job"
+	"fixapp/internal/lead"
+	"fixapp/internal/review"
+	"fixapp/internal/scoring"
 	"fixapp/internal/user"
+	"fixapp/internal/wallet"
 	"fixapp/pkg/database"
 	"fixapp/pkg/logger"
 	"fixapp/pkg/middleware"
@@ -97,6 +105,15 @@ func main() {
 		logger.Log.Info("Registered Facebook OAuth provider")
 	}
 
+	// Initialize repositories
+	jobRepo := job.NewPostgresRepository(db)
+	leadRepo := lead.NewPostgresRepository(db)
+	walletRepo := wallet.NewPostgresRepository(db)
+	handymanRepo := handyman.NewPostgresRepository(db)
+	scoringRepo := scoring.NewPostgresRepository(db)
+	catalogRepo := catalog.NewPostgresRepository(db)
+	reviewRepo := review.NewPostgresRepository(db)
+
 	// Initialize services
 	userService := user.NewService(userRepo, logger.Log)
 	authService := auth.NewService(
@@ -106,6 +123,19 @@ func main() {
 		logger.Log,
 		auth.DefaultConfig(),
 	)
+	jobService := job.NewService(jobRepo, logger.Log)
+	walletService := wallet.NewService(walletRepo, logger.Log)
+	leadService := lead.NewService(leadRepo, jobRepo, walletRepo, logger.Log)
+	handymanService := handyman.NewService(handymanRepo, logger.Log)
+	scoringService := scoring.NewService(scoringRepo, logger.Log)
+
+	// Dispatch service: matches jobs to handymen and creates leads
+	dispatchService := dispatch.NewService(handymanRepo, catalogRepo, leadRepo, scoringRepo, logger.Log)
+	jobService.SetDispatcher(dispatch.NewJobDispatcher(dispatchService))
+
+	// Review service: reviews feed into ProScore
+	reviewService := review.NewService(reviewRepo, jobRepo, scoringService, logger.Log)
+	scoringService.SetReviewCounter(reviewRepo)
 
 	// Initialize JWT middleware
 	jwtMiddleware := middleware.NewJWTAuth(tokenService)
@@ -113,6 +143,13 @@ func main() {
 	// Initialize handlers
 	userHandler := user.NewHandler(userService, logger.Log)
 	authHandler := auth.NewHandler(authService, logger.Log)
+	jobHandler := job.NewHandler(jobService, logger.Log)
+	leadHandler := lead.NewHandler(leadService, logger.Log)
+	walletHandler := wallet.NewHandler(walletService, logger.Log)
+	handymanHandler := handyman.NewHandler(handymanService, logger.Log)
+	scoringHandler := scoring.NewHandler(scoringService, logger.Log)
+	catalogHandler := catalog.NewHandler(catalogRepo, logger.Log)
+	reviewHandler := review.NewHandler(reviewService, logger.Log)
 
 	// Setup router
 	mux := http.NewServeMux()
@@ -122,6 +159,13 @@ func main() {
 	healthHandler.Register(mux)
 	authHandler.Register(mux)
 	userHandler.Register(mux)
+	jobHandler.Register(mux)
+	leadHandler.Register(mux)
+	walletHandler.Register(mux)
+	handymanHandler.Register(mux)
+	scoringHandler.Register(mux)
+	catalogHandler.Register(mux)
+	reviewHandler.Register(mux)
 
 	mux.HandleFunc("/swagger/", httpSwagger.WrapHandler)
 
