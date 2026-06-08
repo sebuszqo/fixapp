@@ -167,7 +167,8 @@ func main() {
 	catalogHandler.Register(mux)
 	reviewHandler.Register(mux)
 
-	mux.HandleFunc("/swagger/", httpSwagger.WrapHandler)
+	mux.HandleFunc("GET /swagger/", httpSwagger.WrapHandler)
+	mux.HandleFunc("GET /swagger/*", httpSwagger.WrapHandler)
 
 	// Apply middleware (order matters!)
 	// JWT middleware runs after logging, extracts user from token
