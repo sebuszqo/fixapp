@@ -48,6 +48,7 @@ func (h *Handler) Register(mux *http.ServeMux) {
 	// Token endpoints
 	mux.HandleFunc("POST /auth/refresh", h.RefreshToken)
 	mux.HandleFunc("POST /auth/logout", h.Logout)
+	mux.HandleFunc("POST /auth/dev-login", h.DevLogin)
 }
 
 // ===== DTOs =====
@@ -295,6 +296,43 @@ func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
 	response.JSON(w, http.StatusOK, response.Success{
 		Success: true,
 		Message: "Logged out successfully",
+	})
+}
+
+// DevLoginRequest is the payload for dev login.
+type DevLoginRequest struct {
+	Email string `json:"email"`
+}
+
+// DevLogin handles direct developer login by email in development environments.
+func (h *Handler) DevLogin(w http.ResponseWriter, r *http.Request) {
+	log := ctxlog.FromContext(r.Context())
+
+	var req DevLoginRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		response.BadRequest(w, "Invalid request body")
+		return
+	}
+
+	if req.Email == "" {
+		response.BadRequest(w, "Email is required")
+		return
+	}
+
+	tokens, err := h.service.DevLogin(r.Context(), req.Email)
+	if err != nil {
+		h.handleAuthError(w, log, err)
+		return
+	}
+
+	// Set refresh token as HttpOnly cookie (secure, not accessible to JavaScript)
+	setRefreshTokenCookie(w, tokens.RefreshToken)
+
+	// Return only access token in JSON
+	response.OK(w, TokenResponse{
+		AccessToken: tokens.AccessToken,
+		ExpiresIn:   900, // 15 minutes in seconds
+		TokenType:   tokens.TokenType,
 	})
 }
 

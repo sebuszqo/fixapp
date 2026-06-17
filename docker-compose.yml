@@ -22,7 +22,7 @@ services:
       POSTGRES_USER: fixapp
       POSTGRES_PASSWORD: fixapp
       POSTGRES_DB: fixapp
-    ports: ["5432:5432"]
+    ports: ["5435:5432"]
     volumes: [dbdata:/var/lib/postgresql/data]
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U fixapp"]

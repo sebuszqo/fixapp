@@ -171,11 +171,14 @@ func main() {
 	mux.HandleFunc("GET /swagger/*", httpSwagger.WrapHandler)
 
 	// Apply middleware (order matters!)
+	// CORS must be outermost so preflight OPTIONS bypass auth
 	// JWT middleware runs after logging, extracts user from token
-	handler := middleware.RequestID(
-		middleware.AttachLogger(logger.Log)(
-			middleware.AccessLogger(logger.Log)(
-				jwtMiddleware.Middleware(mux),
+	handler := middleware.CORS(
+		middleware.RequestID(
+			middleware.AttachLogger(logger.Log)(
+				middleware.AccessLogger(logger.Log)(
+					jwtMiddleware.Middleware(mux),
+				),
 			),
 		),
 	)

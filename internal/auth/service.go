@@ -338,3 +338,24 @@ func generateState() (string, error) {
 	}
 	return base64.URLEncoding.EncodeToString(b), nil
 }
+
+// DevLogin directly authenticates a user by email for development/testing purposes.
+func (s *Service) DevLogin(ctx context.Context, email string) (*token.TokenPair, error) {
+	domainUser, err := s.userRepo.GetByEmail(ctx, email)
+	if err != nil {
+		return nil, err
+	}
+
+	if !domainUser.IsActive {
+		return nil, ErrUserDisabled
+	}
+
+	// Generate tokens
+	return s.tokenService.GenerateTokenPair(
+		domainUser.ID.String(),
+		domainUser.Email,
+		domainUser.Name,
+		domainUser.Role,
+		domainUser.Provider.String(),
+	)
+}
