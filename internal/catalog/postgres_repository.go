@@ -22,7 +22,7 @@ func NewPostgresRepository(db *sql.DB) *PostgresRepository {
 
 // ListCategories retrieves all service categories.
 func (r *PostgresRepository) ListCategories(ctx context.Context, activeOnly bool) ([]*domain.ServiceCategory, error) {
-	query := `SELECT id, name, slug, icon, base_price, is_active FROM service_categories`
+	query := `SELECT id, name, slug, icon, image_url, base_price, is_active FROM service_categories`
 	if activeOnly {
 		query += ` WHERE is_active = true`
 	}
@@ -37,11 +37,12 @@ func (r *PostgresRepository) ListCategories(ctx context.Context, activeOnly bool
 	var categories []*domain.ServiceCategory
 	for rows.Next() {
 		c := &domain.ServiceCategory{}
-		var icon sql.NullString
-		if err := rows.Scan(&c.ID, &c.Name, &c.Slug, &icon, &c.BasePrice, &c.IsActive); err != nil {
+		var icon, imageURL sql.NullString
+		if err := rows.Scan(&c.ID, &c.Name, &c.Slug, &icon, &imageURL, &c.BasePrice, &c.IsActive); err != nil {
 			return nil, err
 		}
 		c.Icon = icon.String
+		c.ImageURL = imageURL.String
 		categories = append(categories, c)
 	}
 	return categories, rows.Err()
@@ -49,11 +50,11 @@ func (r *PostgresRepository) ListCategories(ctx context.Context, activeOnly bool
 
 // GetCategoryByID retrieves a category by ID.
 func (r *PostgresRepository) GetCategoryByID(ctx context.Context, id uuid.UUID) (*domain.ServiceCategory, error) {
-	query := `SELECT id, name, slug, icon, base_price, is_active FROM service_categories WHERE id = $1`
+	query := `SELECT id, name, slug, icon, image_url, base_price, is_active FROM service_categories WHERE id = $1`
 
 	c := &domain.ServiceCategory{}
-	var icon sql.NullString
-	err := r.db.QueryRowContext(ctx, query, id).Scan(&c.ID, &c.Name, &c.Slug, &icon, &c.BasePrice, &c.IsActive)
+	var icon, imageURL sql.NullString
+	err := r.db.QueryRowContext(ctx, query, id).Scan(&c.ID, &c.Name, &c.Slug, &icon, &imageURL, &c.BasePrice, &c.IsActive)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, domain.ErrCategoryNotFound
@@ -61,16 +62,17 @@ func (r *PostgresRepository) GetCategoryByID(ctx context.Context, id uuid.UUID) 
 		return nil, err
 	}
 	c.Icon = icon.String
+	c.ImageURL = imageURL.String
 	return c, nil
 }
 
 // GetCategoryBySlug retrieves a category by slug.
 func (r *PostgresRepository) GetCategoryBySlug(ctx context.Context, slug string) (*domain.ServiceCategory, error) {
-	query := `SELECT id, name, slug, icon, base_price, is_active FROM service_categories WHERE slug = $1`
+	query := `SELECT id, name, slug, icon, image_url, base_price, is_active FROM service_categories WHERE slug = $1`
 
 	c := &domain.ServiceCategory{}
-	var icon sql.NullString
-	err := r.db.QueryRowContext(ctx, query, slug).Scan(&c.ID, &c.Name, &c.Slug, &icon, &c.BasePrice, &c.IsActive)
+	var icon, imageURL sql.NullString
+	err := r.db.QueryRowContext(ctx, query, slug).Scan(&c.ID, &c.Name, &c.Slug, &icon, &imageURL, &c.BasePrice, &c.IsActive)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, domain.ErrCategoryNotFound
@@ -78,6 +80,7 @@ func (r *PostgresRepository) GetCategoryBySlug(ctx context.Context, slug string)
 		return nil, err
 	}
 	c.Icon = icon.String
+	c.ImageURL = imageURL.String
 	return c, nil
 }
 

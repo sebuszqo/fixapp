@@ -28,6 +28,7 @@ import (
 	"fixapp/pkg/logger"
 	"fixapp/pkg/middleware"
 
+	"github.com/joho/godotenv"
 	httpSwagger "github.com/swaggo/http-swagger"
 	"go.uber.org/zap"
 )
@@ -52,6 +53,11 @@ import (
 // @description Type "Bearer" followed by a space and JWT token.
 
 func main() {
+	// Load .env file if it exists
+	if err := godotenv.Load(); err != nil {
+		log.Println("No .env file found, using environment variables")
+	}
+
 	// Initialize logger
 	if err := logger.Initialize(os.Getenv("LOG_LEVEL")); err != nil {
 		log.Fatalf("Failed to initialize logger: %v", err)

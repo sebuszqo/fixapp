@@ -6,12 +6,13 @@ import (
 
 // ServiceCategory represents a type of service (e.g., Hydraulik, Elektryk).
 type ServiceCategory struct {
-	ID       uuid.UUID
-	Name     string // e.g., "Hydraulik"
-	Slug     string // e.g., "hydraulik" (URL-friendly)
-	Icon     string // icon identifier for frontend
+	ID        uuid.UUID
+	Name      string // e.g., "Hydraulik"
+	Slug      string // e.g., "hydraulik" (URL-friendly)
+	Icon      string // icon identifier for frontend
+	ImageURL  string // URL to the category image
 	BasePrice int    // base lead fee in credits for this category
-	IsActive bool
+	IsActive  bool
 }
 
 // District represents a geographic area within the city.

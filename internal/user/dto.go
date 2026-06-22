@@ -71,9 +71,7 @@ func (r *UpdateProfileRequest) Validate() map[string]string {
 		errors["phone"] = "phone must be 50 characters or less"
 	}
 
-	if r.AvatarURL != "" && len(r.AvatarURL) > 500 {
-		errors["avatar_url"] = "avatar_url must be 500 characters or less"
-	}
+	// Removed avatar_url length check since we use base64 data URLs now
 
 	if len(errors) == 0 {
 		return nil

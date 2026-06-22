@@ -36,6 +36,7 @@ type CategoryResponse struct {
 	Name      string `json:"name" example:"Hydraulik"`
 	Slug      string `json:"slug" example:"hydraulik"`
 	Icon      string `json:"icon,omitempty" example:"wrench"`
+	ImageURL  string `json:"image_url,omitempty" example:"https://..."`
 	BasePrice int    `json:"base_price" example:"28"`
 }
 
@@ -112,6 +113,7 @@ func toCategoryResponses(categories []*domain.ServiceCategory) []CategoryRespons
 			Name:      c.Name,
 			Slug:      c.Slug,
 			Icon:      c.Icon,
+			ImageURL:  c.ImageURL,
 			BasePrice: c.BasePrice,
 		}
 	}
