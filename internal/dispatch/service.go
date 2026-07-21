@@ -5,12 +5,14 @@ package dispatch
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"fixapp/internal/catalog"
 	"fixapp/internal/domain"
 	"fixapp/internal/handyman"
 	"fixapp/internal/lead"
+	"fixapp/internal/notification"
 	"fixapp/internal/scoring"
 
 	"github.com/google/uuid"
@@ -28,6 +30,7 @@ type Service struct {
 	catalogRepo  catalog.Repository
 	leadRepo     lead.Repository
 	scoringRepo  scoring.Repository
+	notifService *notification.Service
 	logger       *zap.Logger
 }
 
@@ -46,6 +49,11 @@ func NewService(
 		scoringRepo:  scoringRepo,
 		logger:       logger,
 	}
+}
+
+// SetNotificationService sets the notification service instance.
+func (s *Service) SetNotificationService(ns *notification.Service) {
+	s.notifService = ns
 }
 
 // DispatchResult holds the result of dispatching a job.
@@ -140,6 +148,17 @@ func (s *Service) DispatchJob(ctx context.Context, job *domain.Job, handymanIDs 
 
 		result.LeadsCreated++
 		result.HandymanIDs = append(result.HandymanIDs, profile.UserID)
+
+		if s.notifService != nil {
+			_, _ = s.notifService.CreateNotification(
+				ctx,
+				profile.UserID,
+				domain.NotificationTypeInquiry,
+				"Nowe zapytanie w okolicy",
+				fmt.Sprintf("Otrzymałeś nowe zapytanie o wycenę w kategorii '%s' dla zlecenia '%s'.", category.Name, job.Title),
+				"/pro/requests",
+			)
+		}
 	}
 
 	s.logger.Info("job dispatched",

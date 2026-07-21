@@ -13,6 +13,7 @@ import (
 type LeadResponse struct {
 	ID                string     `json:"id" example:"550e8400-e29b-41d4-a716-446655440000"`
 	JobID             string     `json:"job_id" example:"550e8400-e29b-41d4-a716-446655440001"`
+	ClientID          string     `json:"client_id,omitempty" example:"550e8400-e29b-41d4-a716-446655440003"`
 	JobTitle          string     `json:"job_title,omitempty" example:"Cieknący kran"`
 	JobStatus         string     `json:"job_status,omitempty" example:"in_progress"`
 	HandymanID        string     `json:"handyman_id" example:"550e8400-e29b-41d4-a716-446655440002"`
@@ -81,6 +82,7 @@ func ToLeadResponse(lead *domain.Lead) LeadResponse {
 	return LeadResponse{
 		ID:                lead.ID.String(),
 		JobID:             lead.JobID.String(),
+		ClientID:          lead.ClientID.String(),
 		JobTitle:          lead.JobTitle,
 		JobStatus:         lead.JobStatus,
 		HandymanID:        lead.HandymanID.String(),

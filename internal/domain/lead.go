@@ -14,6 +14,7 @@ const (
 	LeadStatusAccepted LeadStatus = "accepted"
 	LeadStatusRejected LeadStatus = "rejected"
 	LeadStatusExpired  LeadStatus = "expired"
+	LeadStatusDone     LeadStatus = "done"
 )
 
 func (s LeadStatus) String() string {
@@ -22,7 +23,7 @@ func (s LeadStatus) String() string {
 
 func (s LeadStatus) IsValid() bool {
 	switch s {
-	case LeadStatusPending, LeadStatusAccepted, LeadStatusRejected, LeadStatusExpired:
+	case LeadStatusPending, LeadStatusAccepted, LeadStatusRejected, LeadStatusExpired, LeadStatusDone:
 		return true
 	default:
 		return false
@@ -35,6 +36,7 @@ type Lead struct {
 	ID         uuid.UUID
 	JobID      uuid.UUID
 	HandymanID uuid.UUID
+	ClientID   uuid.UUID
 
 	Status LeadStatus
 

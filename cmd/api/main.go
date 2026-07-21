@@ -20,6 +20,8 @@ import (
 	"fixapp/internal/health"
 	"fixapp/internal/job"
 	"fixapp/internal/lead"
+	"fixapp/internal/message"
+	"fixapp/internal/notification"
 	"fixapp/internal/review"
 	"fixapp/internal/scoring"
 	"fixapp/internal/user"
@@ -119,6 +121,8 @@ func main() {
 	scoringRepo := scoring.NewPostgresRepository(db)
 	catalogRepo := catalog.NewPostgresRepository(db)
 	reviewRepo := review.NewPostgresRepository(db)
+	notificationRepo := notification.NewPostgresRepository(db)
+	messageRepo := message.NewPostgresRepository(db)
 
 	// Initialize services
 	userService := user.NewService(userRepo, logger.Log)
@@ -134,13 +138,23 @@ func main() {
 	leadService := lead.NewService(leadRepo, jobRepo, walletRepo, logger.Log)
 	handymanService := handyman.NewService(handymanRepo, logger.Log)
 	scoringService := scoring.NewService(scoringRepo, logger.Log)
+	notificationService := notification.NewService(notificationRepo, logger.Log)
+	messageService := message.NewService(messageRepo, userRepo, notificationService, logger.Log)
+
+	// Connect notification & wallet triggers
+	jobService.SetNotificationService(notificationService)
+	jobService.SetWalletRepository(walletRepo)
+	jobService.SetLeadRepository(leadRepo)
+	leadService.SetNotificationService(notificationService)
 
 	// Dispatch service: matches jobs to handymen and creates leads
 	dispatchService := dispatch.NewService(handymanRepo, catalogRepo, leadRepo, scoringRepo, logger.Log)
+	dispatchService.SetNotificationService(notificationService)
 	jobService.SetDispatcher(dispatch.NewJobDispatcher(dispatchService))
 
 	// Review service: reviews feed into ProScore
 	reviewService := review.NewService(reviewRepo, jobRepo, scoringService, logger.Log)
+	reviewService.SetNotificationService(notificationService)
 	scoringService.SetReviewCounter(reviewRepo)
 
 	// Initialize JWT middleware
@@ -156,9 +170,15 @@ func main() {
 	scoringHandler := scoring.NewHandler(scoringService, logger.Log)
 	catalogHandler := catalog.NewHandler(catalogRepo, logger.Log)
 	reviewHandler := review.NewHandler(reviewService, logger.Log)
+	notificationHandler := notification.NewHandler(notificationService, logger.Log)
+	messageHandler := message.NewHandler(messageService, logger.Log)
 
 	// Setup router
 	mux := http.NewServeMux()
+
+	// Register static uploads handler for chat/portfolio image files
+	_ = os.MkdirAll("./uploads", os.ModePerm)
+	mux.Handle("GET /uploads/", http.StripPrefix("/uploads/", http.FileServer(http.Dir("./uploads"))))
 
 	// Register handlers
 	healthHandler := health.New("1.0.0")
@@ -172,6 +192,8 @@ func main() {
 	scoringHandler.Register(mux)
 	catalogHandler.Register(mux)
 	reviewHandler.Register(mux)
+	notificationHandler.Register(mux)
+	messageHandler.Register(mux)
 
 	mux.HandleFunc("GET /swagger/", httpSwagger.WrapHandler)
 	mux.HandleFunc("GET /swagger/*", httpSwagger.WrapHandler)

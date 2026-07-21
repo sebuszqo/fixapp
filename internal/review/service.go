@@ -2,9 +2,11 @@ package review
 
 import (
 	"context"
+	"fmt"
 
 	"fixapp/internal/auth"
 	"fixapp/internal/domain"
+	"fixapp/internal/notification"
 
 	"github.com/google/uuid"
 	"go.uber.org/zap"
@@ -22,10 +24,11 @@ type ScoringService interface {
 
 // Service handles review business logic.
 type Service struct {
-	repo    Repository
-	jobRepo JobRepository
-	scoring ScoringService
-	logger  *zap.Logger
+	repo         Repository
+	jobRepo      JobRepository
+	scoring      ScoringService
+	notifService *notification.Service
+	logger       *zap.Logger
 }
 
 // NewService creates a new review service.
@@ -36,6 +39,11 @@ func NewService(repo Repository, jobRepo JobRepository, scoring ScoringService, 
 		scoring: scoring,
 		logger:  logger,
 	}
+}
+
+// SetNotificationService sets the notification service instance.
+func (s *Service) SetNotificationService(ns *notification.Service) {
+	s.notifService = ns
 }
 
 // Create creates a new review for a completed job.
@@ -123,6 +131,42 @@ func (s *Service) Create(ctx context.Context, req CreateReviewRequest) (*domain.
 			)
 			// Don't fail the review creation
 		}
+	}
+
+	// Send notifications to reviewee and reviewer
+	if s.notifService != nil {
+		revieweeLink := "/pro/profile"
+		if reviewType == domain.ReviewTypeHandymanToClient {
+			revieweeLink = "/client/profile"
+		}
+		reviewerLink := "/client/orders"
+		if reviewType == domain.ReviewTypeHandymanToClient {
+			reviewerLink = "/pro/requests"
+		}
+
+		// Notification to reviewee
+		revieweeContent := fmt.Sprintf("Otrzymałeś ocenę %d/5 za zlecenie '%s'.", review.Rating, job.Title)
+		if review.Comment != "" {
+			revieweeContent += fmt.Sprintf(" Komentarz: \"%s\"", review.Comment)
+		}
+		_, _ = s.notifService.CreateNotification(
+			ctx,
+			revieweeID,
+			domain.NotificationTypeSystem,
+			"Nowa opinia i ocena",
+			revieweeContent,
+			revieweeLink,
+		)
+
+		// Notification to reviewer
+		_, _ = s.notifService.CreateNotification(
+			ctx,
+			reviewerID,
+			domain.NotificationTypeSystem,
+			"Ocena została opublikowana",
+			fmt.Sprintf("Twoja opinia (%d/5) dla zlecenia '%s' została pomyślnie zapisana.", review.Rating, job.Title),
+			reviewerLink,
+		)
 	}
 
 	return review, nil

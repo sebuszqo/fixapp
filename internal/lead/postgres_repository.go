@@ -47,7 +47,8 @@ func (r *PostgresRepository) GetByID(ctx context.Context, id uuid.UUID) (*domain
 			l.estimated_price, COALESCE(l.arrival_time, ''), COALESCE(l.proposal_message, ''),
 			l.created_at, l.updated_at, l.expires_at, l.accepted_at, l.rejected_at,
 			COALESCE(j.title, '') AS job_title,
-			COALESCE(j.status, '') AS job_status
+			COALESCE(j.status, '') AS job_status,
+			COALESCE(j.client_id, '00000000-0000-0000-0000-000000000000') AS client_id
 		FROM leads l
 		LEFT JOIN jobs j ON j.id = l.job_id
 		WHERE l.id = $1`
@@ -58,7 +59,7 @@ func (r *PostgresRepository) GetByID(ctx context.Context, id uuid.UUID) (*domain
 		&lead.Price, &lead.ClientCommitScore,
 		&lead.EstimatedPrice, &lead.ArrivalTime, &lead.ProposalMessage,
 		&lead.CreatedAt, &lead.UpdatedAt, &lead.ExpiresAt, &lead.AcceptedAt, &lead.RejectedAt,
-		&lead.JobTitle, &lead.JobStatus,
+		&lead.JobTitle, &lead.JobStatus, &lead.ClientID,
 	)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -110,6 +111,8 @@ func (r *PostgresRepository) ListByHandyman(ctx context.Context, handymanID uuid
 			conditions = append(conditions, fmt.Sprintf("l.status = $%d AND (j.status IS NULL OR (j.status != 'done' AND j.status != 'cancelled'))", argIdx))
 			args = append(args, *filter.Status)
 			argIdx++
+		} else if *filter.Status == domain.LeadStatusDone {
+			conditions = append(conditions, "l.status = 'accepted' AND j.status = 'done'")
 		} else if *filter.Status == domain.LeadStatusPending {
 			conditions = append(conditions, fmt.Sprintf("l.status = $%d AND l.expires_at > NOW() AND (j.status IS NULL OR (j.status != 'done' AND j.status != 'cancelled'))", argIdx))
 			args = append(args, *filter.Status)
@@ -137,7 +140,8 @@ func (r *PostgresRepository) ListByHandyman(ctx context.Context, handymanID uuid
 			l.estimated_price, COALESCE(l.arrival_time, ''), COALESCE(l.proposal_message, ''),
 			l.created_at, l.updated_at, l.expires_at, l.accepted_at, l.rejected_at,
 			COALESCE(j.title, '') AS job_title,
-			COALESCE(j.status, '') AS job_status
+			COALESCE(j.status, '') AS job_status,
+			COALESCE(j.client_id, '00000000-0000-0000-0000-000000000000') AS client_id
 		FROM leads l
 		LEFT JOIN jobs j ON j.id = l.job_id
 		%s
@@ -160,7 +164,7 @@ func (r *PostgresRepository) ListByHandyman(ctx context.Context, handymanID uuid
 			&lead.Price, &lead.ClientCommitScore,
 			&lead.EstimatedPrice, &lead.ArrivalTime, &lead.ProposalMessage,
 			&lead.CreatedAt, &lead.UpdatedAt, &lead.ExpiresAt, &lead.AcceptedAt, &lead.RejectedAt,
-			&lead.JobTitle, &lead.JobStatus,
+			&lead.JobTitle, &lead.JobStatus, &lead.ClientID,
 		); err != nil {
 			return nil, 0, err
 		}
@@ -178,7 +182,8 @@ func (r *PostgresRepository) ListByJob(ctx context.Context, jobID uuid.UUID) ([]
 			l.estimated_price, COALESCE(l.arrival_time, ''), COALESCE(l.proposal_message, ''),
 			l.created_at, l.updated_at, l.expires_at, l.accepted_at, l.rejected_at,
 			COALESCE(j.title, '') AS job_title,
-			COALESCE(j.status, '') AS job_status
+			COALESCE(j.status, '') AS job_status,
+			COALESCE(j.client_id, '00000000-0000-0000-0000-000000000000') AS client_id
 		FROM leads l
 		LEFT JOIN jobs j ON j.id = l.job_id
 		WHERE l.job_id = $1
@@ -198,7 +203,7 @@ func (r *PostgresRepository) ListByJob(ctx context.Context, jobID uuid.UUID) ([]
 			&lead.Price, &lead.ClientCommitScore,
 			&lead.EstimatedPrice, &lead.ArrivalTime, &lead.ProposalMessage,
 			&lead.CreatedAt, &lead.UpdatedAt, &lead.ExpiresAt, &lead.AcceptedAt, &lead.RejectedAt,
-			&lead.JobTitle, &lead.JobStatus,
+			&lead.JobTitle, &lead.JobStatus, &lead.ClientID,
 		); err != nil {
 			return nil, err
 		}

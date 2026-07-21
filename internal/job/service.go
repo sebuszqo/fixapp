@@ -2,10 +2,12 @@ package job
 
 import (
 	"context"
+	"fmt"
 
 	"fixapp/internal/auth"
 	"fixapp/internal/auth/permission"
 	"fixapp/internal/domain"
+	"fixapp/internal/notification"
 
 	"github.com/google/uuid"
 	"go.uber.org/zap"
@@ -16,11 +18,24 @@ type Dispatcher interface {
 	DispatchJob(ctx context.Context, job *domain.Job, handymanIDs []uuid.UUID) error
 }
 
+// WalletRepository defines interface for deducting credits (avoids circular dependency).
+type WalletRepository interface {
+	DebitAtomic(ctx context.Context, userID uuid.UUID, amount int, reason domain.TransactionReason, referenceID *uuid.UUID, description string) error
+}
+
+// LeadRepository defines interface for querying job leads (avoids circular dependency).
+type LeadRepository interface {
+	ListByJob(ctx context.Context, jobID uuid.UUID) ([]*domain.Lead, error)
+}
+
 // Service handles job business logic.
 type Service struct {
-	repo       Repository
-	dispatcher Dispatcher
-	logger     *zap.Logger
+	repo         Repository
+	dispatcher   Dispatcher
+	walletRepo   WalletRepository
+	leadRepo     LeadRepository
+	notifService *notification.Service
+	logger       *zap.Logger
 }
 
 // NewService creates a new job service.
@@ -34,6 +49,19 @@ func NewService(repo Repository, logger *zap.Logger) *Service {
 // SetDispatcher sets the dispatcher (called after initialization to break circular dep).
 func (s *Service) SetDispatcher(d Dispatcher) {
 	s.dispatcher = d
+}
+
+func (s *Service) SetWalletRepository(w WalletRepository) {
+	s.walletRepo = w
+}
+
+func (s *Service) SetLeadRepository(l LeadRepository) {
+	s.leadRepo = l
+}
+
+// SetNotificationService sets the notification service instance.
+func (s *Service) SetNotificationService(ns *notification.Service) {
+	s.notifService = ns
 }
 
 // Create creates a new job for the authenticated client.
@@ -194,6 +222,43 @@ func (s *Service) StartWork(ctx context.Context, id uuid.UUID) (*domain.Job, err
 		return nil, err
 	}
 
+	// Deduct credits from handyman ONLY NOW after proposal is accepted by client
+	if job.CompletedByID != nil && s.walletRepo != nil && s.leadRepo != nil {
+		leads, err := s.leadRepo.ListByJob(ctx, job.ID)
+		if err == nil {
+			for _, l := range leads {
+				if l.HandymanID == *job.CompletedByID && l.Status == domain.LeadStatusAccepted {
+					err = s.walletRepo.DebitAtomic(ctx, *job.CompletedByID, l.Price, domain.ReasonLeadAccepted, &l.ID, "Opłata za przyjętą propozycję wyceny zlecenia")
+					if err != nil {
+						s.logger.Warn("failed to debit credits for accepted lead", zap.Error(err))
+					}
+					break
+				}
+			}
+		}
+	}
+
+	if s.notifService != nil {
+		if job.CompletedByID != nil {
+			_, _ = s.notifService.CreateNotification(
+				ctx,
+				*job.CompletedByID,
+				domain.NotificationTypeJobStatus,
+				"Rozpoczęto prace nad zleceniem",
+				fmt.Sprintf("Klient zaakceptował wycenę i rozpoczął prace nad zleceniem '%s'.", job.Title),
+				"/pro/requests",
+			)
+		}
+		_, _ = s.notifService.CreateNotification(
+			ctx,
+			job.ClientID,
+			domain.NotificationTypeJobStatus,
+			"Status zlecenia zmieniony",
+			fmt.Sprintf("Zlecenie '%s' zmieniło status na: W trakcie realizacji.", job.Title),
+			"/client/orders",
+		)
+	}
+
 	s.logger.Info("job proposal accepted, work started",
 		zap.String("job_id", job.ID.String()),
 		zap.String("client_id", userID.String()),
@@ -226,6 +291,17 @@ func (s *Service) Complete(ctx context.Context, id uuid.UUID, finalValue int) (*
 
 	if err := s.repo.Update(ctx, job); err != nil {
 		return nil, err
+	}
+
+	if s.notifService != nil {
+		_, _ = s.notifService.CreateNotification(
+			ctx,
+			job.ClientID,
+			domain.NotificationTypeJobStatus,
+			"Zlecenie wykonane przez fachowca",
+			fmt.Sprintf("Fachowiec oznaczył zlecenie '%s' jako wykonane. Potwierdź wykonanie usugi w aplikacji.", job.Title),
+			"/client/orders",
+		)
 	}
 
 	s.logger.Info("job completed",
@@ -262,6 +338,17 @@ func (s *Service) Confirm(ctx context.Context, id uuid.UUID) (*domain.Job, error
 		return nil, err
 	}
 
+	if s.notifService != nil && job.CompletedByID != nil {
+		_, _ = s.notifService.CreateNotification(
+			ctx,
+			*job.CompletedByID,
+			domain.NotificationTypeJobStatus,
+			"Zlecenie potwierdzone",
+			fmt.Sprintf("Klient potwierdził pomyślne wykonanie zlecenia '%s'.", job.Title),
+			"/pro/requests",
+		)
+	}
+
 	s.logger.Info("job confirmed by client",
 		zap.String("job_id", job.ID.String()),
 		zap.String("client_id", userID.String()),
@@ -294,6 +381,27 @@ func (s *Service) Cancel(ctx context.Context, id uuid.UUID) (*domain.Job, error)
 
 	if err := s.repo.Update(ctx, job); err != nil {
 		return nil, err
+	}
+
+	if s.notifService != nil {
+		_, _ = s.notifService.CreateNotification(
+			ctx,
+			job.ClientID,
+			domain.NotificationTypeJobStatus,
+			"Anulowano zlecenie",
+			fmt.Sprintf("Zlecenie '%s' zostało anulowane.", job.Title),
+			"/client/orders",
+		)
+		if job.CompletedByID != nil {
+			_, _ = s.notifService.CreateNotification(
+				ctx,
+				*job.CompletedByID,
+				domain.NotificationTypeJobStatus,
+				"Anulowano zlecenie",
+				fmt.Sprintf("Zlecenie '%s' zostało anulowane.", job.Title),
+				"/pro/requests",
+			)
+		}
 	}
 
 	s.logger.Info("job cancelled",

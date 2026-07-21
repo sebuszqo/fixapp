@@ -2,11 +2,13 @@ package lead
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"fixapp/internal/auth"
 	"fixapp/internal/domain"
 	"fixapp/internal/job"
+	"fixapp/internal/notification"
 	"fixapp/internal/wallet"
 
 	"github.com/google/uuid"
@@ -20,10 +22,11 @@ const (
 
 // Service handles lead business logic.
 type Service struct {
-	repo       Repository
-	jobRepo    job.Repository
-	walletRepo wallet.Repository
-	logger     *zap.Logger
+	repo         Repository
+	jobRepo      job.Repository
+	walletRepo   wallet.Repository
+	notifService *notification.Service
+	logger       *zap.Logger
 }
 
 // NewService creates a new lead service.
@@ -34,6 +37,11 @@ func NewService(repo Repository, jobRepo job.Repository, walletRepo wallet.Repos
 		walletRepo: walletRepo,
 		logger:     logger,
 	}
+}
+
+// SetNotificationService sets the notification service instance.
+func (s *Service) SetNotificationService(ns *notification.Service) {
+	s.notifService = ns
 }
 
 // GetByID retrieves a lead by ID with access control.
@@ -110,17 +118,8 @@ func (s *Service) Accept(ctx context.Context, id uuid.UUID, req *AcceptLeadReque
 		return nil, domain.ErrJobAlreadyAccepted
 	}
 
-	// Deduct credits from handyman's wallet
-	err = s.walletRepo.DebitAtomic(ctx, handymanID, lead.Price, domain.ReasonLeadAccepted, &lead.ID,
-		"Lead acceptance fee")
-	if err != nil {
-		return nil, err // Returns ErrInsufficientCredits if balance too low
-	}
-
-	// Accept the lead and attach proposal info if provided
+	// Accept the lead and attach proposal info if provided (credits deducted only when client accepts proposal)
 	if err := lead.Accept(); err != nil {
-		// Refund credits if lead transition fails
-		_ = s.walletRepo.CreditAtomic(ctx, handymanID, lead.Price, domain.ReasonLeadRefund, &lead.ID, "Refund: lead accept failed")
 		return nil, err
 	}
 
@@ -150,7 +149,40 @@ func (s *Service) Accept(ctx context.Context, id uuid.UUID, req *AcceptLeadReque
 		return nil, err
 	}
 
-	// TODO: Send notification to client that a handyman accepted
+	// Send notifications to both handyman and client on proposal submission/update
+	if s.notifService != nil {
+		// Handyman notification
+		handymanMsg := fmt.Sprintf("Pobrano prowizję %d PLN. Twoja propozycja dla zlecenia '%s' została wysłana do klienta.", lead.Price, j.Title)
+		_, _ = s.notifService.CreateNotification(
+			ctx,
+			handymanID,
+			domain.NotificationTypePayment,
+			"Propozycja wysłana do klienta",
+			handymanMsg,
+			"/pro/requests",
+		)
+
+		// Client notification
+		clientMsg := fmt.Sprintf("Fachowiec przesłał propozycję dla zlecenia '%s'.", j.Title)
+		if lead.EstimatedPrice != nil {
+			clientMsg += fmt.Sprintf(" Wycena: %d PLN.", *lead.EstimatedPrice)
+		}
+		if lead.ArrivalTime != "" {
+			clientMsg += fmt.Sprintf(" Termin: %s.", lead.ArrivalTime)
+		}
+		if lead.ProposalMessage != "" {
+			clientMsg += fmt.Sprintf(" Wiadomość: %s", lead.ProposalMessage)
+		}
+
+		_, _ = s.notifService.CreateNotification(
+			ctx,
+			j.ClientID,
+			domain.NotificationTypeJobStatus,
+			"Aktualizacja propozycji fachowca",
+			clientMsg,
+			"/client/orders",
+		)
+	}
 
 	s.logger.Info("lead accepted",
 		zap.String("lead_id", lead.ID.String()),
