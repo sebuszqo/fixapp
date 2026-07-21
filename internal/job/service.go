@@ -13,7 +13,7 @@ import (
 
 // Dispatcher is the interface for lead dispatch (avoids circular dependency).
 type Dispatcher interface {
-	DispatchJob(ctx context.Context, job *domain.Job) error
+	DispatchJob(ctx context.Context, job *domain.Job, handymanIDs []uuid.UUID) error
 }
 
 // Service handles job business logic.
@@ -124,7 +124,8 @@ func (s *Service) GetByID(ctx context.Context, id uuid.UUID) (*domain.Job, error
 }
 
 // Publish moves a job from draft to active (visible to handymen).
-func (s *Service) Publish(ctx context.Context, id uuid.UUID) (*domain.Job, error) {
+// If handymanIDs is provided and not empty, it will only dispatch leads to those specific handymen.
+func (s *Service) Publish(ctx context.Context, id uuid.UUID, handymanIDs []uuid.UUID) (*domain.Job, error) {
 	authUser := auth.FromContext(ctx)
 	if authUser == nil {
 		return nil, domain.ErrUnauthorized
@@ -155,7 +156,7 @@ func (s *Service) Publish(ctx context.Context, id uuid.UUID) (*domain.Job, error
 
 	// Dispatch leads to matching handymen (async-safe, non-blocking)
 	if s.dispatcher != nil {
-		if err := s.dispatcher.DispatchJob(ctx, job); err != nil {
+		if err := s.dispatcher.DispatchJob(ctx, job, handymanIDs); err != nil {
 			s.logger.Error("failed to dispatch job leads",
 				zap.String("job_id", job.ID.String()),
 				zap.Error(err),

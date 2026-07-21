@@ -4,6 +4,8 @@ import (
 	"context"
 
 	"fixapp/internal/domain"
+	
+	"github.com/google/uuid"
 )
 
 // JobDispatcher adapts the dispatch.Service to the job.Dispatcher interface.
@@ -17,7 +19,7 @@ func NewJobDispatcher(service *Service) *JobDispatcher {
 }
 
 // DispatchJob implements job.Dispatcher.
-func (d *JobDispatcher) DispatchJob(ctx context.Context, job *domain.Job) error {
-	_, err := d.service.DispatchJob(ctx, job)
+func (d *JobDispatcher) DispatchJob(ctx context.Context, job *domain.Job, handymanIDs []uuid.UUID) error {
+	_, err := d.service.DispatchJob(ctx, job, handymanIDs)
 	return err
 }

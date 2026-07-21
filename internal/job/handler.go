@@ -179,7 +179,22 @@ func (h *Handler) PublishJob(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	job, err := h.service.Publish(r.Context(), id)
+	var req PublishJobRequest
+	var handymanIDs []uuid.UUID
+	
+	if r.ContentLength > 0 {
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			response.BadRequest(w, "Invalid request body")
+			return
+		}
+		for _, hid := range req.HandymanIDs {
+			if uid, err := uuid.Parse(hid); err == nil {
+				handymanIDs = append(handymanIDs, uid)
+			}
+		}
+	}
+
+	job, err := h.service.Publish(r.Context(), id, handymanIDs)
 	if err != nil {
 		h.handleError(w, log, err)
 		return

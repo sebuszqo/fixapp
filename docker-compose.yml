@@ -12,6 +12,7 @@ services:
       DB_SSLMODE: disable
       JWT_SECRET: dev-secret-change-in-production
       LOG_LEVEL: debug
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:5173,http://localhost:3000,http://localhost:5174,http://localhost:3001,http://127.0.0.1:5173,http://127.0.0.1:3000}
     depends_on:
       db:
         condition: service_healthy
@@ -22,7 +23,7 @@ services:
       POSTGRES_USER: fixapp
       POSTGRES_PASSWORD: fixapp
       POSTGRES_DB: fixapp
-    ports: ["5435:5432"]
+    ports: ["5432:5432"]
     volumes: [dbdata:/var/lib/postgresql/data]
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U fixapp"]

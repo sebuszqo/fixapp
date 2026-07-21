@@ -56,7 +56,8 @@ type DispatchResult struct {
 
 // DispatchJob finds matching handymen for a published job and creates leads.
 // This should be called after a job transitions to "active" status.
-func (s *Service) DispatchJob(ctx context.Context, job *domain.Job) (*DispatchResult, error) {
+// If handymanIDs is provided and not empty, it will only create leads for those specific handymen.
+func (s *Service) DispatchJob(ctx context.Context, job *domain.Job, handymanIDs []uuid.UUID) (*DispatchResult, error) {
 	if job.Status != domain.JobStatusActive {
 		return nil, domain.ErrInvalidJobTransition
 	}
@@ -78,6 +79,20 @@ func (s *Service) DispatchJob(ctx context.Context, job *domain.Job) (*DispatchRe
 	profiles, err := s.handymanRepo.FindMatchingForJob(ctx, job.CategoryID, job.DistrictID, isEmergency)
 	if err != nil {
 		return nil, err
+	}
+
+	// Filter by handymanIDs if provided
+	if len(handymanIDs) > 0 {
+		filteredProfiles := make([]*domain.HandymanProfile, 0)
+		for _, profile := range profiles {
+			for _, id := range handymanIDs {
+				if profile.UserID == id {
+					filteredProfiles = append(filteredProfiles, profile)
+					break
+				}
+			}
+		}
+		profiles = filteredProfiles
 	}
 
 	if len(profiles) == 0 {

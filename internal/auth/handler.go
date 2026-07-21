@@ -7,6 +7,7 @@ import (
 	"os"
 
 	"fixapp/internal/auth/token"
+	"fixapp/internal/domain"
 	"fixapp/pkg/ctxlog"
 	"fixapp/pkg/response"
 
@@ -353,6 +354,9 @@ func (h *Handler) handleAuthError(w http.ResponseWriter, log *zap.Logger, err er
 
 	case errors.Is(err, token.ErrTokenInvalid):
 		response.UnauthorizedWithCode(w, "Invalid token", response.CodeTokenInvalid)
+
+	case errors.Is(err, domain.ErrUserNotFound):
+		response.Unauthorized(w, "User not found")
 
 	default:
 		log.Error("auth error", zap.Error(err))

@@ -141,6 +141,12 @@ func (r *CompleteJobRequest) Validate() map[string]string {
 	return errs
 }
 
+// PublishJobRequest is the payload for publishing a job directly to selected handymen.
+// @Description Publish job request
+type PublishJobRequest struct {
+	HandymanIDs []string `json:"handyman_ids,omitempty" example:"[\"550e8400-e29b-41d4-a716-446655440001\"]"`
+}
+
 // ===== Mappers =====
 
 // ToJobResponse converts a domain job to API response.

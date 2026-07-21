@@ -3,6 +3,7 @@ package middleware
 import (
 	"net/http"
 	"os"
+	"strings"
 )
 
 // CORS returns a middleware that handles Cross-Origin Resource Sharing.
@@ -36,18 +37,31 @@ func CORS(next http.Handler) http.Handler {
 func getAllowedOrigin(origin string) string {
 	// Check CORS_ORIGIN env var first (production)
 	if corsOrigin := os.Getenv("CORS_ORIGIN"); corsOrigin != "" {
-		if origin == corsOrigin {
-			return origin
+		// Support comma-separated list of origins
+		origins := strings.Split(corsOrigin, ",")
+		for _, o := range origins {
+			o = strings.TrimSpace(o)
+			if origin == o {
+				return origin
+			}
 		}
 		return ""
 	}
 
 	// Development: allow localhost origins
 	allowedDevOrigins := map[string]bool{
-		"http://localhost:5173": true,
 		"http://localhost:3000": true,
+		"http://localhost:3001": true,
+		"http://localhost:5173": true,
+		"http://localhost:5174": true,
 		"http://localhost:4173": true, // Vite preview
+		"http://localhost:8080": true,
+		"http://localhost:8081": true,
+		"http://127.0.0.1:3000": true,
+		"http://127.0.0.1:3001": true,
 		"http://127.0.0.1:5173": true,
+		"http://127.0.0.1:5174": true,
+		"http://127.0.0.1:4173": true,
 	}
 
 	if allowedDevOrigins[origin] {
