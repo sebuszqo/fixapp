@@ -65,18 +65,23 @@ func (r *PostgresRepository) Create(ctx context.Context, job *domain.Job) error 
 // GetByID retrieves a job by its ID.
 func (r *PostgresRepository) GetByID(ctx context.Context, id uuid.UUID) (*domain.Job, error) {
 	query := `
-		SELECT id, client_id, category_id, district_id,
-			title, description, urgency, status,
-			address, building_type, floor, has_elevator,
-			preferred_date1, preferred_date2, preferred_time,
-			budget, wants_invoice, contact_method,
-			photo_urls, final_value, completed_at, completed_by_id, client_confirmed,
-			created_at, updated_at, expires_at
-		FROM jobs WHERE id = $1`
+		SELECT j.id, j.client_id, j.category_id, j.district_id,
+			j.title, j.description, j.urgency, j.status,
+			j.address, j.building_type, j.floor, j.has_elevator,
+			j.preferred_date1, j.preferred_date2, j.preferred_time,
+			j.budget, j.wants_invoice, j.contact_method,
+			j.photo_urls, j.final_value, j.completed_at, j.completed_by_id, j.client_confirmed,
+			j.created_at, j.updated_at, j.expires_at,
+			l.estimated_price, COALESCE(l.arrival_time, ''), COALESCE(l.proposal_message, '')
+		FROM jobs j
+		LEFT JOIN leads l ON l.job_id = j.id AND l.status = 'accepted'
+		WHERE j.id = $1`
 
 	job := &domain.Job{}
 	var address, buildingType, preferredTime sql.NullString
 	var photoURLsJSON []byte
+	var estPrice sql.NullInt64
+	var arrTime, propMsg sql.NullString
 
 	err := r.db.QueryRowContext(ctx, query, id).Scan(
 		&job.ID, &job.ClientID, &job.CategoryID, &job.DistrictID,
@@ -86,6 +91,7 @@ func (r *PostgresRepository) GetByID(ctx context.Context, id uuid.UUID) (*domain
 		&job.Budget, &job.WantsInvoice, &job.ContactMethod,
 		&photoURLsJSON, &job.FinalValue, &job.CompletedAt, &job.CompletedByID, &job.ClientConfirmed,
 		&job.CreatedAt, &job.UpdatedAt, &job.ExpiresAt,
+		&estPrice, &arrTime, &propMsg,
 	)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -103,6 +109,19 @@ func (r *PostgresRepository) GetByID(ctx context.Context, id uuid.UUID) (*domain
 	}
 	if job.PhotoURLs == nil {
 		job.PhotoURLs = []string{}
+	}
+
+	if estPrice.Valid || arrTime.String != "" || propMsg.String != "" {
+		var ep *int
+		if estPrice.Valid {
+			v := int(estPrice.Int64)
+			ep = &v
+		}
+		job.Proposal = &domain.JobProposal{
+			EstimatedPrice:  ep,
+			ArrivalTime:     arrTime.String,
+			ProposalMessage: propMsg.String,
+		}
 	}
 
 	return job, nil
@@ -155,22 +174,22 @@ func (r *PostgresRepository) List(ctx context.Context, filter ListFilter) ([]*do
 	argIdx := 1
 
 	if filter.ClientID != nil {
-		conditions = append(conditions, fmt.Sprintf("client_id = $%d", argIdx))
+		conditions = append(conditions, fmt.Sprintf("j.client_id = $%d", argIdx))
 		args = append(args, *filter.ClientID)
 		argIdx++
 	}
 	if filter.CategoryID != nil {
-		conditions = append(conditions, fmt.Sprintf("category_id = $%d", argIdx))
+		conditions = append(conditions, fmt.Sprintf("j.category_id = $%d", argIdx))
 		args = append(args, *filter.CategoryID)
 		argIdx++
 	}
 	if filter.DistrictID != nil {
-		conditions = append(conditions, fmt.Sprintf("district_id = $%d", argIdx))
+		conditions = append(conditions, fmt.Sprintf("j.district_id = $%d", argIdx))
 		args = append(args, *filter.DistrictID)
 		argIdx++
 	}
 	if filter.Status != nil {
-		conditions = append(conditions, fmt.Sprintf("status = $%d", argIdx))
+		conditions = append(conditions, fmt.Sprintf("j.status = $%d", argIdx))
 		args = append(args, *filter.Status)
 		argIdx++
 	}
@@ -181,7 +200,7 @@ func (r *PostgresRepository) List(ctx context.Context, filter ListFilter) ([]*do
 	}
 
 	// Count total
-	countQuery := fmt.Sprintf("SELECT COUNT(*) FROM jobs %s", where)
+	countQuery := fmt.Sprintf("SELECT COUNT(*) FROM jobs j %s", where)
 	var total int64
 	if err := r.db.QueryRowContext(ctx, countQuery, args...).Scan(&total); err != nil {
 		return nil, 0, err
@@ -189,15 +208,18 @@ func (r *PostgresRepository) List(ctx context.Context, filter ListFilter) ([]*do
 
 	// Fetch jobs
 	query := fmt.Sprintf(`
-		SELECT id, client_id, category_id, district_id,
-			title, description, urgency, status,
-			address, building_type, floor, has_elevator,
-			preferred_date1, preferred_date2, preferred_time,
-			budget, wants_invoice, contact_method,
-			photo_urls, final_value, completed_at, completed_by_id, client_confirmed,
-			created_at, updated_at, expires_at
-		FROM jobs %s
-		ORDER BY created_at DESC
+		SELECT j.id, j.client_id, j.category_id, j.district_id,
+			j.title, j.description, j.urgency, j.status,
+			j.address, j.building_type, j.floor, j.has_elevator,
+			j.preferred_date1, j.preferred_date2, j.preferred_time,
+			j.budget, j.wants_invoice, j.contact_method,
+			j.photo_urls, j.final_value, j.completed_at, j.completed_by_id, j.client_confirmed,
+			j.created_at, j.updated_at, j.expires_at,
+			l.estimated_price, COALESCE(l.arrival_time, ''), COALESCE(l.proposal_message, '')
+		FROM jobs j
+		LEFT JOIN leads l ON l.job_id = j.id AND l.status = 'accepted'
+		%s
+		ORDER BY j.created_at DESC
 		LIMIT $%d OFFSET $%d`, where, argIdx, argIdx+1)
 
 	args = append(args, filter.Limit, filter.Offset)
@@ -213,6 +235,8 @@ func (r *PostgresRepository) List(ctx context.Context, filter ListFilter) ([]*do
 		job := &domain.Job{}
 		var address, buildingType, preferredTime sql.NullString
 		var photoURLsJSON []byte
+		var estPrice sql.NullInt64
+		var arrTime, propMsg sql.NullString
 
 		if err := rows.Scan(
 			&job.ID, &job.ClientID, &job.CategoryID, &job.DistrictID,
@@ -222,6 +246,7 @@ func (r *PostgresRepository) List(ctx context.Context, filter ListFilter) ([]*do
 			&job.Budget, &job.WantsInvoice, &job.ContactMethod,
 			&photoURLsJSON, &job.FinalValue, &job.CompletedAt, &job.CompletedByID, &job.ClientConfirmed,
 			&job.CreatedAt, &job.UpdatedAt, &job.ExpiresAt,
+			&estPrice, &arrTime, &propMsg,
 		); err != nil {
 			return nil, 0, err
 		}
@@ -235,6 +260,19 @@ func (r *PostgresRepository) List(ctx context.Context, filter ListFilter) ([]*do
 		}
 		if job.PhotoURLs == nil {
 			job.PhotoURLs = []string{}
+		}
+
+		if estPrice.Valid || arrTime.String != "" || propMsg.String != "" {
+			var ep *int
+			if estPrice.Valid {
+				v := int(estPrice.Int64)
+				ep = &v
+			}
+			job.Proposal = &domain.JobProposal{
+				EstimatedPrice:  ep,
+				ArrivalTime:     arrTime.String,
+				ProposalMessage: propMsg.String,
+			}
 		}
 
 		jobs = append(jobs, job)

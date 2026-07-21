@@ -167,6 +167,40 @@ func (s *Service) Publish(ctx context.Context, id uuid.UUID) (*domain.Job, error
 	return job, nil
 }
 
+// StartWork marks the job proposal as accepted by the client and moves status to in_progress.
+func (s *Service) StartWork(ctx context.Context, id uuid.UUID) (*domain.Job, error) {
+	authUser := auth.FromContext(ctx)
+	if authUser == nil {
+		return nil, domain.ErrUnauthorized
+	}
+
+	job, err := s.repo.GetByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+
+	// Only the job owner (client) can confirm proposal and start work
+	userID, _ := uuid.Parse(authUser.ID)
+	if job.ClientID != userID {
+		return nil, domain.ErrForbidden
+	}
+
+	if err := job.StartWork(); err != nil {
+		return nil, err
+	}
+
+	if err := s.repo.Update(ctx, job); err != nil {
+		return nil, err
+	}
+
+	s.logger.Info("job proposal accepted, work started",
+		zap.String("job_id", job.ID.String()),
+		zap.String("client_id", userID.String()),
+	)
+
+	return job, nil
+}
+
 // Complete marks a job as done with a declared final value.
 func (s *Service) Complete(ctx context.Context, id uuid.UUID, finalValue int) (*domain.Job, error) {
 	authUser := auth.FromContext(ctx)

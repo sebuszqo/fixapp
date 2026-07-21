@@ -83,8 +83,8 @@ func (s *Service) GetDetail(ctx context.Context, id uuid.UUID) (*domain.Lead, *d
 	return lead, j, nil
 }
 
-// Accept marks a lead as accepted. This deducts credits and updates the job status.
-func (s *Service) Accept(ctx context.Context, id uuid.UUID) (*domain.Lead, error) {
+// Accept marks a lead as accepted. This deducts credits, stores handyman proposal, and updates status.
+func (s *Service) Accept(ctx context.Context, id uuid.UUID, req *AcceptLeadRequest) (*domain.Lead, error) {
 	authUser := auth.FromContext(ctx)
 	if authUser == nil {
 		return nil, domain.ErrUnauthorized
@@ -117,14 +117,20 @@ func (s *Service) Accept(ctx context.Context, id uuid.UUID) (*domain.Lead, error
 		return nil, err // Returns ErrInsufficientCredits if balance too low
 	}
 
-	// Accept the lead
+	// Accept the lead and attach proposal info if provided
 	if err := lead.Accept(); err != nil {
 		// Refund credits if lead transition fails
 		_ = s.walletRepo.CreditAtomic(ctx, handymanID, lead.Price, domain.ReasonLeadRefund, &lead.ID, "Refund: lead accept failed")
 		return nil, err
 	}
 
-	// Update lead status
+	if req != nil {
+		lead.EstimatedPrice = req.EstimatedPrice
+		lead.ArrivalTime = req.ArrivalTime
+		lead.ProposalMessage = req.ProposalMessage
+	}
+
+	// Update lead status and proposal
 	if err := s.repo.Update(ctx, lead); err != nil {
 		// Refund credits if DB update fails
 		_ = s.walletRepo.CreditAtomic(ctx, handymanID, lead.Price, domain.ReasonLeadRefund, &lead.ID, "Refund: lead update failed")
@@ -196,6 +202,9 @@ func (s *Service) ListMyLeads(ctx context.Context, status *domain.LeadStatus, li
 	if authUser == nil {
 		return nil, 0, domain.ErrUnauthorized
 	}
+
+	// Expire any pending leads that have passed their expiration time
+	_, _ = s.ExpireOldLeads(ctx)
 
 	handymanID, err := uuid.Parse(authUser.ID)
 	if err != nil {

@@ -13,15 +13,27 @@ import (
 type LeadResponse struct {
 	ID                string     `json:"id" example:"550e8400-e29b-41d4-a716-446655440000"`
 	JobID             string     `json:"job_id" example:"550e8400-e29b-41d4-a716-446655440001"`
+	JobTitle          string     `json:"job_title,omitempty" example:"Cieknący kran"`
+	JobStatus         string     `json:"job_status,omitempty" example:"in_progress"`
 	HandymanID        string     `json:"handyman_id" example:"550e8400-e29b-41d4-a716-446655440002"`
 	Status            string     `json:"status" example:"pending"`
 	Price             int        `json:"price" example:"22"`
 	ClientCommitScore int        `json:"client_commit_score" example:"85"`
+	EstimatedPrice    *int       `json:"estimated_price,omitempty" example:"150"`
+	ArrivalTime       string     `json:"arrival_time,omitempty" example:"Jutro ok. 14:00"`
+	ProposalMessage   string     `json:"proposal_message,omitempty" example:"Wiadomość do klienta"`
 	CreatedAt         time.Time  `json:"created_at" example:"2025-01-10T12:00:00Z"`
 	UpdatedAt         time.Time  `json:"updated_at" example:"2025-01-10T12:00:00Z"`
 	ExpiresAt         time.Time  `json:"expires_at" example:"2025-01-11T12:00:00Z"`
 	AcceptedAt        *time.Time `json:"accepted_at,omitempty"`
 	RejectedAt        *time.Time `json:"rejected_at,omitempty"`
+}
+
+// AcceptLeadRequest defines optional proposal details submitted when a handyman responds/accepts a lead.
+type AcceptLeadRequest struct {
+	EstimatedPrice  *int   `json:"estimated_price"`
+	ArrivalTime     string `json:"arrival_time"`
+	ProposalMessage string `json:"proposal_message"`
 }
 
 // LeadDetailResponse includes the lead plus job details.
@@ -69,10 +81,15 @@ func ToLeadResponse(lead *domain.Lead) LeadResponse {
 	return LeadResponse{
 		ID:                lead.ID.String(),
 		JobID:             lead.JobID.String(),
+		JobTitle:          lead.JobTitle,
+		JobStatus:         lead.JobStatus,
 		HandymanID:        lead.HandymanID.String(),
 		Status:            lead.Status.String(),
 		Price:             lead.Price,
 		ClientCommitScore: lead.ClientCommitScore,
+		EstimatedPrice:    lead.EstimatedPrice,
+		ArrivalTime:       lead.ArrivalTime,
+		ProposalMessage:   lead.ProposalMessage,
 		CreatedAt:         lead.CreatedAt,
 		UpdatedAt:         lead.UpdatedAt,
 		ExpiresAt:         lead.ExpiresAt,

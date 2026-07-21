@@ -36,6 +36,7 @@ func (h *Handler) Register(mux *http.ServeMux) {
 	mux.Handle("GET /jobs", middleware.RequireAuth(http.HandlerFunc(h.ListMyJobs)))
 	mux.Handle("GET /jobs/{id}", middleware.RequireAuth(http.HandlerFunc(h.GetJob)))
 	mux.Handle("POST /jobs/{id}/publish", middleware.RequireAuth(http.HandlerFunc(h.PublishJob)))
+	mux.Handle("POST /jobs/{id}/start", middleware.RequireAuth(http.HandlerFunc(h.StartWorkJob)))
 	mux.Handle("POST /jobs/{id}/complete", middleware.RequireHandyman(http.HandlerFunc(h.CompleteJob)))
 	mux.Handle("POST /jobs/{id}/confirm", middleware.RequireAuth(http.HandlerFunc(h.ConfirmJob)))
 	mux.Handle("POST /jobs/{id}/cancel", middleware.RequireAuth(http.HandlerFunc(h.CancelJob)))
@@ -179,6 +180,38 @@ func (h *Handler) PublishJob(w http.ResponseWriter, r *http.Request) {
 	}
 
 	job, err := h.service.Publish(r.Context(), id)
+	if err != nil {
+		h.handleError(w, log, err)
+		return
+	}
+
+	response.OK(w, ToJobResponse(job))
+}
+
+// StartWorkJob godoc
+// @Summary      Accept job proposal / start work
+// @Description  Client accepts the handyman proposal and moves job to in_progress status
+// @Tags         jobs
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        id   path      string  true  "Job ID"
+// @Success      200  {object}  JobResponse
+// @Failure      400  {object}  response.Error
+// @Failure      401  {object}  response.Error
+// @Failure      403  {object}  response.Error
+// @Failure      404  {object}  response.Error
+// @Router       /jobs/{id}/start [post]
+func (h *Handler) StartWorkJob(w http.ResponseWriter, r *http.Request) {
+	log := ctxlog.FromContext(r.Context())
+
+	id, err := uuid.Parse(r.PathValue("id"))
+	if err != nil {
+		response.BadRequest(w, "Invalid job ID")
+		return
+	}
+
+	job, err := h.service.StartWork(r.Context(), id)
 	if err != nil {
 		h.handleError(w, log, err)
 		return

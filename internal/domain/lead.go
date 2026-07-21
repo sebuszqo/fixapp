@@ -44,6 +44,15 @@ type Lead struct {
 	// Client quality indicator (snapshot at lead creation time)
 	ClientCommitScore int
 
+	// Related Job info
+	JobTitle  string
+	JobStatus string
+
+	// Proposal details submitted by handyman
+	EstimatedPrice  *int
+	ArrivalTime     string
+	ProposalMessage string
+
 	// Timestamps
 	CreatedAt  time.Time
 	UpdatedAt  time.Time

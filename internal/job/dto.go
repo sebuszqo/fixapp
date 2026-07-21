@@ -8,6 +8,13 @@ import (
 
 // ===== Response DTOs =====
 
+// JobProposalResponse represents proposal information attached to a job.
+type JobProposalResponse struct {
+	EstimatedPrice  *int   `json:"estimated_price,omitempty" example:"150"`
+	ArrivalTime     string `json:"arrival_time,omitempty" example:"Jutro ok. 14:00"`
+	ProposalMessage string `json:"proposal_message,omitempty" example:"Oferta naprawy"`
+}
+
 // JobResponse is the public representation of a job.
 // @Description Job information
 type JobResponse struct {
@@ -30,6 +37,7 @@ type JobResponse struct {
 	WantsInvoice   bool       `json:"wants_invoice" example:"false"`
 	ContactMethod  string     `json:"contact_method" example:"phone"`
 	PhotoURLs      []string   `json:"photo_urls"`
+	Proposal       *JobProposalResponse `json:"proposal,omitempty"`
 	FinalValue     *int       `json:"final_value,omitempty" example:"280"`
 	CompletedAt    *time.Time `json:"completed_at,omitempty"`
 	CompletedByID  *string    `json:"completed_by_id,omitempty"`
@@ -163,6 +171,13 @@ func ToJobResponse(job *domain.Job) JobResponse {
 		CreatedAt:      job.CreatedAt,
 		UpdatedAt:      job.UpdatedAt,
 		ExpiresAt:      job.ExpiresAt,
+	}
+	if job.Proposal != nil {
+		resp.Proposal = &JobProposalResponse{
+			EstimatedPrice:  job.Proposal.EstimatedPrice,
+			ArrivalTime:     job.Proposal.ArrivalTime,
+			ProposalMessage: job.Proposal.ProposalMessage,
+		}
 	}
 	if job.CompletedByID != nil {
 		s := job.CompletedByID.String()

@@ -1,6 +1,7 @@
 package lead
 
 import (
+	"encoding/json"
 	"errors"
 	"net/http"
 	"strconv"
@@ -139,7 +140,12 @@ func (h *Handler) AcceptLead(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	lead, err := h.service.Accept(r.Context(), id)
+	var req AcceptLeadRequest
+	if r.ContentLength != 0 {
+		_ = json.NewDecoder(r.Body).Decode(&req)
+	}
+
+	lead, err := h.service.Accept(r.Context(), id, &req)
 	if err != nil {
 		h.handleError(w, log, err)
 		return

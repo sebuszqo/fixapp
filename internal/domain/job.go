@@ -55,6 +55,13 @@ func (u JobUrgency) IsValid() bool {
 	}
 }
 
+// JobProposal holds proposal details submitted by a handyman for a job.
+type JobProposal struct {
+	EstimatedPrice  *int
+	ArrivalTime     string
+	ProposalMessage string
+}
+
 // Job represents a client's service request.
 type Job struct {
 	ID          uuid.UUID
@@ -86,6 +93,9 @@ type Job struct {
 
 	// Photos (stored as URLs)
 	PhotoURLs []string
+
+	// Proposal details (if lead accepted by a handyman)
+	Proposal *JobProposal
 
 	// Completion
 	FinalValue      *int       // declared value after completion (PLN)
@@ -152,7 +162,7 @@ func (j *Job) StartWork() error {
 
 // Complete marks the job as done with a declared value.
 func (j *Job) Complete(finalValue int) error {
-	if j.Status != JobStatusAccepted && j.Status != JobStatusInProgress {
+	if j.Status != JobStatusInProgress {
 		return ErrInvalidJobTransition
 	}
 	j.Status = JobStatusDone
