@@ -49,6 +49,7 @@ type ConversationResponse struct {
 	JobID            *string `json:"job_id,omitempty"`
 	JobTitle         string  `json:"job_title,omitempty"`
 	CategoryName     string  `json:"category_name,omitempty"`
+	LeadStatus       string  `json:"lead_status,omitempty"`
 	LastMessage      string  `json:"last_message"`
 	LastMessageTime  string  `json:"last_message_time"`
 	UnreadCount      int     `json:"unread_count"`
@@ -63,6 +64,7 @@ func ToConversationResponse(c *domain.Conversation) ConversationResponse {
 		AvatarURL:        c.AvatarURL,
 		JobTitle:         c.JobTitle,
 		CategoryName:     c.CategoryName,
+		LeadStatus:       c.LeadStatus,
 		LastMessage:      c.LastMessage,
 		LastMessageTime:  c.LastMessageTime.Format(time.RFC3339),
 		UnreadCount:      c.UnreadCount,

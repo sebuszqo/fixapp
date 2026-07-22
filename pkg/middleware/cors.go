@@ -7,8 +7,6 @@ import (
 )
 
 // CORS returns a middleware that handles Cross-Origin Resource Sharing.
-// In development, it allows requests from localhost:5173 (Vite dev server).
-// In production, it uses the CORS_ORIGIN environment variable.
 func CORS(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		origin := r.Header.Get("Origin")
@@ -18,7 +16,13 @@ func CORS(next http.Handler) http.Handler {
 			w.Header().Set("Access-Control-Allow-Origin", allowedOrigin)
 			w.Header().Set("Access-Control-Allow-Credentials", "true")
 			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
-			w.Header().Set("Access-Control-Allow-Headers", "Authorization, Content-Type, Accept, X-Request-ID")
+
+			reqHeaders := r.Header.Get("Access-Control-Request-Headers")
+			if reqHeaders != "" {
+				w.Header().Set("Access-Control-Allow-Headers", reqHeaders)
+			} else {
+				w.Header().Set("Access-Control-Allow-Headers", "Authorization, Content-Type, Accept, X-Request-ID")
+			}
 			w.Header().Set("Access-Control-Max-Age", "86400")
 			w.Header().Set("Access-Control-Expose-Headers", "X-Request-ID")
 		}
@@ -35,36 +39,25 @@ func CORS(next http.Handler) http.Handler {
 
 // getAllowedOrigin checks if the given origin is allowed.
 func getAllowedOrigin(origin string) string {
-	// Check CORS_ORIGIN env var first (production)
-	if corsOrigin := os.Getenv("CORS_ORIGIN"); corsOrigin != "" {
-		// Support comma-separated list of origins
-		origins := strings.Split(corsOrigin, ",")
-		for _, o := range origins {
-			o = strings.TrimSpace(o)
-			if origin == o {
-				return origin
-			}
-		}
+	if origin == "" {
 		return ""
 	}
 
-	// Development: allow localhost origins
-	allowedDevOrigins := map[string]bool{
-		"http://localhost:3000": true,
-		"http://localhost:3001": true,
-		"http://localhost:5173": true,
-		"http://localhost:5174": true,
-		"http://localhost:4173": true, // Vite preview
-		"http://localhost:8080": true,
-		"http://localhost:8081": true,
-		"http://127.0.0.1:3000": true,
-		"http://127.0.0.1:3001": true,
-		"http://127.0.0.1:5173": true,
-		"http://127.0.0.1:5174": true,
-		"http://127.0.0.1:4173": true,
+	// Check CORS_ORIGIN env var first
+	if corsOrigin := os.Getenv("CORS_ORIGIN"); corsOrigin != "" {
+		corsOrigin = strings.ReplaceAll(corsOrigin, "\r", "")
+		corsOrigin = strings.ReplaceAll(corsOrigin, "\n", "")
+		origins := strings.Split(corsOrigin, ",")
+		for _, o := range origins {
+			o = strings.TrimSpace(o)
+			if o == "*" || origin == o {
+				return origin
+			}
+		}
 	}
 
-	if allowedDevOrigins[origin] {
+	// Development: allow any localhost origins or 127.0.0.1 origins
+	if strings.HasPrefix(origin, "http://localhost:") || strings.HasPrefix(origin, "http://127.0.0.1:") || strings.HasPrefix(origin, "https://localhost:") {
 		return origin
 	}
 

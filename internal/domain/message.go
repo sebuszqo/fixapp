@@ -27,6 +27,7 @@ type Conversation struct {
 	JobID            *uuid.UUID `json:"job_id,omitempty"`
 	JobTitle         string     `json:"job_title,omitempty"`
 	CategoryName     string     `json:"category_name,omitempty"`
+	LeadStatus       string     `json:"lead_status,omitempty"`
 	LastMessage      string     `json:"last_message"`
 	LastMessageTime  time.Time  `json:"last_message_time"`
 	UnreadCount      int        `json:"unread_count"`

@@ -45,7 +45,7 @@ func (r *PostgresRepository) GetConversations(ctx context.Context, userID uuid.U
 				m.job_id,
 				MAX(m.created_at) AS last_act
 			FROM messages m
-			WHERE (m.sender_id = $1 OR m.receiver_id = $1) AND m.job_id IS NOT NULL
+			WHERE m.sender_id = $1 OR m.receiver_id = $1
 			GROUP BY 1, 2
 
 			UNION
@@ -56,19 +56,22 @@ func (r *PostgresRepository) GetConversations(ctx context.Context, userID uuid.U
 				COALESCE(l.accepted_at, l.created_at) AS last_act
 			FROM leads l
 			JOIN jobs j ON j.id = l.job_id
-			WHERE (l.status = 'accepted' OR j.status IN ('accepted', 'in_progress', 'done')) AND (l.handyman_id = $1 OR j.client_id = $1)
+			WHERE (l.handyman_id = $1 OR j.client_id = $1)
+			  AND j.client_id IS NOT NULL
+			  AND l.handyman_id IS NOT NULL
+			  AND (CASE WHEN l.handyman_id = $1 THEN j.client_id ELSE l.handyman_id END) != $1
 		),
 		distinct_pairs AS (
-			SELECT DISTINCT ON (job_id, counterparty_id)
+			SELECT DISTINCT ON (counterparty_id, COALESCE(job_id, '00000000-0000-0000-0000-000000000000'::uuid))
 				counterparty_id,
 				job_id,
 				last_act
 			FROM active_pairs
-			WHERE job_id IS NOT NULL
-			ORDER BY job_id, counterparty_id, last_act DESC
+			WHERE counterparty_id != '00000000-0000-0000-0000-000000000000'::uuid
+			ORDER BY counterparty_id, COALESCE(job_id, '00000000-0000-0000-0000-000000000000'::uuid), last_act DESC
 		),
 		latest_messages AS (
-			SELECT DISTINCT ON (job_id, counterparty_id)
+			SELECT DISTINCT ON (counterparty_id, COALESCE(job_id, '00000000-0000-0000-0000-000000000000'::uuid))
 				counterparty_id,
 				job_id,
 				content AS last_message_content,
@@ -82,9 +85,9 @@ func (r *PostgresRepository) GetConversations(ctx context.Context, userID uuid.U
 					m.image_url,
 					m.created_at
 				FROM messages m
-				WHERE (m.sender_id = $1 OR m.receiver_id = $1) AND m.job_id IS NOT NULL
+				WHERE m.sender_id = $1 OR m.receiver_id = $1
 			) msg_sub
-			ORDER BY job_id, counterparty_id, created_at DESC
+			ORDER BY counterparty_id, COALESCE(job_id, '00000000-0000-0000-0000-000000000000'::uuid), created_at DESC
 		),
 		unread_counts AS (
 			SELECT 
@@ -92,7 +95,7 @@ func (r *PostgresRepository) GetConversations(ctx context.Context, userID uuid.U
 				job_id,
 				COUNT(*) AS unread_cnt
 			FROM messages
-			WHERE receiver_id = $1 AND is_read = false AND job_id IS NOT NULL
+			WHERE receiver_id = $1 AND is_read = false
 			GROUP BY sender_id, job_id
 		)
 		SELECT 
@@ -103,6 +106,7 @@ func (r *PostgresRepository) GetConversations(ctx context.Context, userID uuid.U
 			dp.job_id,
 			COALESCE(j.title, 'Zlecenie') AS job_title,
 			COALESCE(cat.name, '') AS category_name,
+			COALESCE(l.status, j.status, '') AS lead_status,
 			CASE 
 				WHEN lm.last_message_content IS NOT NULL AND lm.last_message_content <> '' THEN lm.last_message_content
 				WHEN lm.last_message_image IS NOT NULL AND lm.last_message_image <> '' THEN 'Przesłano zdjęcie'
@@ -114,9 +118,10 @@ func (r *PostgresRepository) GetConversations(ctx context.Context, userID uuid.U
 		JOIN users u ON u.id = dp.counterparty_id
 		LEFT JOIN handyman_profiles hp ON hp.user_id = dp.counterparty_id
 		LEFT JOIN jobs j ON j.id = dp.job_id
+		LEFT JOIN leads l ON l.job_id = dp.job_id AND (l.handyman_id = dp.counterparty_id OR l.handyman_id = $1)
 		LEFT JOIN service_categories cat ON cat.id = j.category_id
-		LEFT JOIN latest_messages lm ON lm.job_id = dp.job_id AND lm.counterparty_id = dp.counterparty_id
-		LEFT JOIN unread_counts uc ON uc.job_id = dp.job_id AND uc.counterparty_id = dp.counterparty_id
+		LEFT JOIN latest_messages lm ON lm.counterparty_id = dp.counterparty_id AND lm.job_id IS NOT DISTINCT FROM dp.job_id
+		LEFT JOIN unread_counts uc ON uc.counterparty_id = dp.counterparty_id AND uc.job_id IS NOT DISTINCT FROM dp.job_id
 		ORDER BY COALESCE(lm.last_message_time, dp.last_act) DESC`
 
 	rows, err := r.db.QueryContext(ctx, query, userID)
@@ -137,6 +142,7 @@ func (r *PostgresRepository) GetConversations(ctx context.Context, userID uuid.U
 			&jobID,
 			&c.JobTitle,
 			&c.CategoryName,
+			&c.LeadStatus,
 			&c.LastMessage,
 			&c.LastMessageTime,
 			&c.UnreadCount,
