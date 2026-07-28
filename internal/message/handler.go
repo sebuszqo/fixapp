@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"fixapp/internal/auth"
+	"fixapp/internal/domain"
 	"fixapp/pkg/ctxlog"
 	"fixapp/pkg/middleware"
 	"fixapp/pkg/response"
@@ -132,6 +133,10 @@ func (h *Handler) SendMessage(w http.ResponseWriter, r *http.Request) {
 
 	msg, err := h.service.SendMessage(r.Context(), req)
 	if err != nil {
+		if err == domain.ErrChatNotAllowed {
+			response.Forbidden(w, "Czat z użytkownikiem jest dostępny dopiero po zaakceptowaniu oferty przez klienta.")
+			return
+		}
 		log.Error("failed to send message", zap.Error(err))
 		response.InternalServerError(w, "")
 		return

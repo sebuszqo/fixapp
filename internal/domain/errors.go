@@ -41,6 +41,9 @@ var (
 	ErrLeadAlreadyAccepted   = errors.New("lead already accepted")
 	ErrInsufficientCredits   = errors.New("insufficient credits to accept lead")
 
+	// Message / Chat errors
+	ErrChatNotAllowed = errors.New("chat is available only after job proposal is accepted by client")
+
 	// Category/District errors
 	ErrCategoryNotFound = errors.New("service category not found")
 	ErrDistrictNotFound = errors.New("district not found")

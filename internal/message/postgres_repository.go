@@ -60,6 +60,7 @@ func (r *PostgresRepository) GetConversations(ctx context.Context, userID uuid.U
 			  AND j.client_id IS NOT NULL
 			  AND l.handyman_id IS NOT NULL
 			  AND (CASE WHEN l.handyman_id = $1 THEN j.client_id ELSE l.handyman_id END) != $1
+			  AND (l.status = 'accepted' OR j.status IN ('accepted', 'in_progress', 'done'))
 		),
 		distinct_pairs AS (
 			SELECT DISTINCT ON (counterparty_id, COALESCE(job_id, '00000000-0000-0000-0000-000000000000'::uuid))
@@ -221,4 +222,29 @@ func (r *PostgresRepository) GetUnreadCount(ctx context.Context, userID uuid.UUI
 	var count int64
 	err := r.db.QueryRowContext(ctx, query, userID).Scan(&count)
 	return count, err
+}
+
+func (r *PostgresRepository) IsChatAllowed(ctx context.Context, userID1, userID2 uuid.UUID, jobID *uuid.UUID) (bool, error) {
+	var msgExists bool
+	msgQuery := `
+		SELECT EXISTS (
+			SELECT 1 FROM messages
+			WHERE ((sender_id = $1 AND receiver_id = $2) OR (sender_id = $2 AND receiver_id = $1))
+			  AND ($3::uuid IS NULL OR job_id = $3)
+		)`
+	if err := r.db.QueryRowContext(ctx, msgQuery, userID1, userID2, jobID).Scan(&msgExists); err == nil && msgExists {
+		return true, nil
+	}
+
+	query := `
+		SELECT EXISTS (
+			SELECT 1 FROM leads l
+			JOIN jobs j ON j.id = l.job_id
+			WHERE ((l.handyman_id = $1 AND j.client_id = $2) OR (l.handyman_id = $2 AND j.client_id = $1))
+			  AND ($3::uuid IS NULL OR j.id = $3)
+			  AND (l.status = 'accepted' OR j.status IN ('accepted', 'in_progress', 'done'))
+		)`
+	var allowed bool
+	err := r.db.QueryRowContext(ctx, query, userID1, userID2, jobID).Scan(&allowed)
+	return allowed, err
 }

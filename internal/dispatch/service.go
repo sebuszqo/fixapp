@@ -172,14 +172,9 @@ func (s *Service) DispatchJob(ctx context.Context, job *domain.Job, handymanIDs 
 	return result, nil
 }
 
-// calculateLeadPrice computes: BasePrice × ClientMultiplier × HandymanMultiplier
+// calculateLeadPrice returns a fixed engagement cost of 28 credits for every job
 func calculateLeadPrice(basePrice int, cs *domain.CommitScore, ps *domain.ProScore) int {
-	price := float64(basePrice) * cs.ClientMultiplier() * ps.HandymanMultiplier()
-	result := int(price + 0.5)
-	if result < 1 {
-		result = 1
-	}
-	return result
+	return 28
 }
 
 // calculatePerJobBonus computes extra commit score points based on job quality.

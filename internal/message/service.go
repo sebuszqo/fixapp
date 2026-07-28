@@ -60,6 +60,11 @@ func (s *Service) SendMessage(ctx context.Context, req SendMessageRequest) (*dom
 		}
 	}
 
+	allowed, err := s.repo.IsChatAllowed(ctx, senderID, receiverID, jobID)
+	if err != nil || !allowed {
+		return nil, domain.ErrChatNotAllowed
+	}
+
 	msg := domain.NewMessage(senderID, receiverID, jobID, req.Content, req.ImageURL)
 	if err := s.repo.Create(ctx, msg); err != nil {
 		s.logger.Error("failed to create message", zap.Error(err))

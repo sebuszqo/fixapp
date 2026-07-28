@@ -189,28 +189,9 @@ func (s *Service) RecalculateProScore(ctx context.Context, userID uuid.UUID, fac
 	return nil
 }
 
-// CalculateLeadPrice computes the dynamic lead price.
-// Price = BasePrice × ClientMultiplier × HandymanMultiplier
+// CalculateLeadPrice returns a fixed lead price of 28 credits for every job.
 func (s *Service) CalculateLeadPrice(ctx context.Context, basePriceCredits int, clientID, handymanID uuid.UUID) (int, error) {
-	cs, err := s.repo.GetCommitScore(ctx, clientID)
-	if err != nil {
-		return 0, err
-	}
-
-	ps, err := s.repo.GetProScore(ctx, handymanID)
-	if err != nil {
-		return 0, err
-	}
-
-	price := float64(basePriceCredits) * cs.ClientMultiplier() * ps.HandymanMultiplier()
-
-	// Round to nearest integer, minimum 1
-	result := int(price + 0.5)
-	if result < 1 {
-		result = 1
-	}
-
-	return result, nil
+	return 28, nil
 }
 
 // CommitScoreFactors are the inputs needed to recalculate a Commit Score.

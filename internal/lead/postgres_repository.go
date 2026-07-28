@@ -137,7 +137,7 @@ func (r *PostgresRepository) ListByHandyman(ctx context.Context, handymanID uuid
 	query := fmt.Sprintf(`
 		SELECT l.id, l.job_id, l.handyman_id, l.status,
 			l.price, l.client_commit_score,
-			l.estimated_price, COALESCE(l.arrival_time, ''), COALESCE(l.proposal_message, ''),
+			l.estimated_price, COALESCE(NULLIF(l.arrival_time, ''), TO_CHAR(j.preferred_date1, 'YYYY-MM-DD'), ''), COALESCE(l.proposal_message, ''),
 			l.created_at, l.updated_at, l.expires_at, l.accepted_at, l.rejected_at,
 			COALESCE(j.title, '') AS job_title,
 			COALESCE(j.status, '') AS job_status,
@@ -179,7 +179,7 @@ func (r *PostgresRepository) ListByJob(ctx context.Context, jobID uuid.UUID) ([]
 	query := `
 		SELECT l.id, l.job_id, l.handyman_id, l.status,
 			l.price, l.client_commit_score,
-			l.estimated_price, COALESCE(l.arrival_time, ''), COALESCE(l.proposal_message, ''),
+			l.estimated_price, COALESCE(NULLIF(l.arrival_time, ''), TO_CHAR(j.preferred_date1, 'YYYY-MM-DD'), ''), COALESCE(l.proposal_message, ''),
 			l.created_at, l.updated_at, l.expires_at, l.accepted_at, l.rejected_at,
 			COALESCE(j.title, '') AS job_title,
 			COALESCE(j.status, '') AS job_status,
