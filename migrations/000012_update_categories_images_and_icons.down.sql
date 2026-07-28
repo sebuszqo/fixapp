@@ -1,0 +1,1 @@
+-- Down migration: nothing to revert

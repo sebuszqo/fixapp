@@ -21,14 +21,19 @@ CREATE TABLE IF NOT EXISTS districts (
 
 -- Seed Krakow categories
 INSERT INTO service_categories (name, slug, icon, base_price) VALUES
-    ('Hydraulik', 'hydraulik', 'wrench', 28),
+    ('Hydraulik', 'hydraulik', 'droplets', 28),
     ('Elektryk', 'elektryk', 'zap', 28),
-    ('Zlota raczka', 'zlota-raczka', 'hammer', 15),
-    ('AGD', 'agd', 'settings', 20),
+    ('Złota rączka', 'zlota-raczka', 'hammer', 15),
+    ('Naprawa AGD', 'agd', 'tv', 20),
     ('Malarz', 'malarz', 'paintbrush', 22),
-    ('Slusarz', 'slusarz', 'key', 25),
-    ('Klimatyzacja', 'klimatyzacja', 'thermometer', 30),
-    ('Sprzatanie', 'sprzatanie', 'sparkles', 15);
+    ('Stolarz', 'stolarz', 'box', 22),
+    ('Ślusarz', 'slusarz', 'key', 25),
+    ('Ogrodnik', 'ogrodnik', 'flower', 18),
+    ('Klimatyzacja', 'klimatyzacja', 'wind', 30),
+    ('Sprzątanie', 'sprzatanie', 'sparkles', 15),
+    ('Przeprowadzki', 'przeprowadzki', 'truck', 25),
+    ('Dekarz', 'dacharz', 'home', 30)
+ON CONFLICT (slug) DO NOTHING;
 
 -- Seed Krakow districts
 INSERT INTO districts (name, slug, city_name) VALUES
