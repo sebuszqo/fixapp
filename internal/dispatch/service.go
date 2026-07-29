@@ -101,6 +101,11 @@ func (s *Service) DispatchJob(ctx context.Context, job *domain.Job, handymanIDs 
 			}
 		}
 		profiles = filteredProfiles
+	} else {
+		// Cap automatic dispatch to maximum 5 handymen
+		if len(profiles) > 5 {
+			profiles = profiles[:5]
+		}
 	}
 
 	if len(profiles) == 0 {

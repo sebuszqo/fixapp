@@ -194,6 +194,11 @@ func (h *Handler) PublishJob(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	if len(handymanIDs) > 5 {
+		response.BadRequest(w, "Możesz wybrać maksymalnie 5 fachowców")
+		return
+	}
+
 	job, err := h.service.Publish(r.Context(), id, handymanIDs)
 	if err != nil {
 		h.handleError(w, log, err)
