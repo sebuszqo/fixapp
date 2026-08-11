@@ -119,17 +119,59 @@ func (s *Service) UpdateProfile(ctx context.Context, req UpdateProfileRequest) (
 	if req.NIP != nil {
 		profile.NIP = *req.NIP
 	}
+	if req.CompanyAddress != nil {
+		profile.CompanyAddress = *req.CompanyAddress
+	}
+	if req.PKDCode != nil {
+		profile.PKDCode = *req.PKDCode
+	}
+	if req.GUSStatus != nil {
+		profile.GUSStatus = *req.GUSStatus
+	}
+	if req.GUSVerified != nil {
+		profile.GUSVerified = *req.GUSVerified
+	}
 	if req.Phone != nil {
 		profile.Phone = *req.Phone
 	}
 	if req.Email != nil {
 		profile.Email = *req.Email
 	}
+	if req.BusinessType != nil {
+		profile.BusinessType = *req.BusinessType
+	}
+	if req.IsVATPayer != nil {
+		profile.IsVATPayer = *req.IsVATPayer
+	}
+	if req.ConsentIdentityVerification != nil {
+		profile.ConsentIdentityVerification = *req.ConsentIdentityVerification
+	}
+	if req.ConsentMarketing != nil {
+		profile.ConsentMarketing = *req.ConsentMarketing
+	}
 	if req.Bio != nil {
 		profile.Bio = *req.Bio
 	}
 	if req.AvatarURL != nil {
 		profile.AvatarURL = *req.AvatarURL
+	}
+	if req.ExperienceYears != nil {
+		profile.ExperienceYears = *req.ExperienceYears
+	}
+	if req.WorkingHours != nil {
+		profile.WorkingHours = *req.WorkingHours
+	}
+	if req.VerificationStatus != nil {
+		profile.VerificationStatus = *req.VerificationStatus
+	}
+	if req.CEIDGDocumentURL != nil {
+		profile.CEIDGDocumentURL = *req.CEIDGDocumentURL
+	}
+	if req.MicrotransferStatus != nil {
+		profile.MicrotransferStatus = *req.MicrotransferStatus
+	}
+	if req.MicrotransferCode != nil {
+		profile.MicrotransferCode = *req.MicrotransferCode
 	}
 	if req.Categories != nil {
 		categories := make([]uuid.UUID, 0, len(req.Categories))
@@ -162,6 +204,90 @@ func (s *Service) UpdateProfile(ctx context.Context, req UpdateProfileRequest) (
 	if req.EmergencyAvailable != nil {
 		profile.EmergencyAvailable = *req.EmergencyAvailable
 	}
+
+	profile.UpdatedAt = time.Now()
+
+	if err := s.repo.Update(ctx, profile); err != nil {
+		return nil, err
+	}
+
+	return profile, nil
+}
+
+// LookupGUS performs a mock/live GUS database lookup for a Polish NIP number.
+func (s *Service) LookupGUS(ctx context.Context, nip string) (*GUSLookupResponse, error) {
+	// Clean NIP string
+	cleanNip := ""
+	for _, r := range nip {
+		if r >= '0' && r <= '9' {
+			cleanNip += string(r)
+		}
+	}
+
+	if len(cleanNip) != 10 {
+		return &GUSLookupResponse{
+			Found:   false,
+			NIP:     nip,
+			Message: "Podany NIP musi składać się z 10 cyfr",
+		}, nil
+	}
+
+	// Test case for invalid / suspended NIP
+	if cleanNip == "0000000000" || cleanNip == "9999999999" || cleanNip == "1111111111" {
+		return &GUSLookupResponse{
+			Found:   false,
+			NIP:     cleanNip,
+			Status:  "Zawieszona",
+			Message: "Podany NIP nie istnieje w rejestrze GUS lub działalność jest zawieszona/wykreślona.",
+		}, nil
+	}
+
+	// Standard response for active business
+	return &GUSLookupResponse{
+		Found:       true,
+		NIP:         cleanNip,
+		CompanyName: "Usługi Hydrauliczne i Budowlane Jan Kowalski",
+		Address:     "Kraków, ul. Przykładowa 1",
+		PKD:         "4322Z - Wykonywanie instalacji wodno-kanalizacyjnych",
+		Status:      "Aktywna",
+	}, nil
+}
+
+// UploadCEIDG processes and attaches a CEIDG PDF document for verification.
+func (s *Service) UploadCEIDG(ctx context.Context, docURL string) (*domain.HandymanProfile, error) {
+	profile, err := s.GetMyProfile(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	now := time.Now()
+	profile.CEIDGDocumentURL = docURL
+	profile.CEIDGUploadedAt = &now
+	profile.VerificationStatus = "pending_review"
+	profile.UpdatedAt = now
+
+	if err := s.repo.Update(ctx, profile); err != nil {
+		return nil, err
+	}
+
+	return profile, nil
+}
+
+// ConfirmMicrotransfer records user confirmation of 1 gr microtransfer.
+func (s *Service) ConfirmMicrotransfer(ctx context.Context, code string) (*domain.HandymanProfile, error) {
+	profile, err := s.GetMyProfile(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	now := time.Now()
+	profile.MicrotransferStatus = "pending"
+	profile.MicrotransferCode = code
+	profile.MicrotransferConfirmedAt = &now
+	if profile.VerificationStatus == "unverified" {
+		profile.VerificationStatus = "pending_review"
+	}
+	profile.UpdatedAt = now
 
 	if err := s.repo.Update(ctx, profile); err != nil {
 		return nil, err
@@ -201,13 +327,14 @@ func (s *Service) AddPricing(ctx context.Context, req CreatePricingRequest) (*do
 	}
 
 	item := &domain.PricingItem{
-		ID:          uuid.New(),
-		ProfileID:   profile.ID,
-		ServiceName: req.ServiceName,
-		PriceFrom:   req.PriceFrom,
-		PriceTo:     req.PriceTo,
-		Unit:        unit,
-		SortOrder:   req.SortOrder,
+		ID:                uuid.New(),
+		ProfileID:         profile.ID,
+		ServiceName:       req.ServiceName,
+		PriceFrom:         req.PriceFrom,
+		PriceTo:           req.PriceTo,
+		Unit:              unit,
+		EstimatedDuration: req.EstimatedDuration,
+		SortOrder:         req.SortOrder,
 	}
 
 	if err := s.repo.CreatePricingItem(ctx, item); err != nil {
@@ -252,3 +379,4 @@ func (s *Service) AddPortfolio(ctx context.Context, req AddPortfolioRequest) (*d
 func (s *Service) DeletePortfolio(ctx context.Context, itemID uuid.UUID) error {
 	return s.repo.DeletePortfolioItem(ctx, itemID)
 }
+

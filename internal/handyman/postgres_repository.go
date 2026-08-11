@@ -27,18 +27,31 @@ func NewPostgresRepository(db *sql.DB) *PostgresRepository {
 func (r *PostgresRepository) CreateProfile(ctx context.Context, profile *domain.HandymanProfile) error {
 	query := `
 		INSERT INTO handyman_profiles (
-			id, user_id, company_name, nip, phone, email,
-			bio, avatar_url, categories, districts,
-			is_available, emergency_available, is_verified,
+			id, user_id, company_name, nip, company_address, pkd_code, gus_status, gus_verified,
+			phone, email, business_type, is_vat_payer, consent_identity_verification, consent_marketing,
+			bio, avatar_url, experience_years, working_hours, categories, districts,
+			is_available, emergency_available, is_verified, verification_status,
+			ceidg_document_url, ceidg_uploaded_at, microtransfer_status, microtransfer_code, microtransfer_confirmed_at,
 			created_at, updated_at
-		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)`
+		) VALUES (
+			$1, $2, $3, $4, $5, $6, $7, $8,
+			$9, $10, $11, $12, $13, $14,
+			$15, $16, $17, $18, $19, $20,
+			$21, $22, $23, $24,
+			$25, $26, $27, $28, $29,
+			$30, $31
+		)`
 
 	_, err := r.db.ExecContext(ctx, query,
 		profile.ID, profile.UserID,
-		nullStr(profile.CompanyName), nullStr(profile.NIP), nullStr(profile.Phone), nullStr(profile.Email),
-		nullStr(profile.Bio), nullStr(profile.AvatarURL),
+		nullStr(profile.CompanyName), nullStr(profile.NIP), nullStr(profile.CompanyAddress), nullStr(profile.PKDCode),
+		nullStr(profile.GUSStatus), profile.GUSVerified,
+		nullStr(profile.Phone), nullStr(profile.Email), nullStr(profile.BusinessType), profile.IsVATPayer,
+		profile.ConsentIdentityVerification, profile.ConsentMarketing,
+		nullStr(profile.Bio), nullStr(profile.AvatarURL), nullStr(profile.ExperienceYears), nullStr(profile.WorkingHours),
 		pq.Array(profile.Categories), pq.Array(profile.Districts),
-		profile.IsAvailable, profile.EmergencyAvailable, profile.IsVerified,
+		profile.IsAvailable, profile.EmergencyAvailable, profile.IsVerified, nullStr(profile.VerificationStatus),
+		nullStr(profile.CEIDGDocumentURL), profile.CEIDGUploadedAt, nullStr(profile.MicrotransferStatus), nullStr(profile.MicrotransferCode), profile.MicrotransferConfirmedAt,
 		profile.CreatedAt, profile.UpdatedAt,
 	)
 	if err != nil {
@@ -62,21 +75,24 @@ func (r *PostgresRepository) GetByID(ctx context.Context, id uuid.UUID) (*domain
 
 func (r *PostgresRepository) getByCondition(ctx context.Context, condition string, arg interface{}) (*domain.HandymanProfile, error) {
 	query := fmt.Sprintf(`
-		SELECT id, user_id, company_name, nip, phone, email,
-			bio, avatar_url, categories, districts,
-			is_available, emergency_available, is_verified,
+		SELECT id, user_id, company_name, nip, company_address, pkd_code, gus_status, gus_verified,
+			phone, email, business_type, is_vat_payer, consent_identity_verification, consent_marketing,
+			bio, avatar_url, experience_years, working_hours, categories, districts,
+			is_available, emergency_available, is_verified, verification_status,
+			ceidg_document_url, ceidg_uploaded_at, microtransfer_status, microtransfer_code, microtransfer_confirmed_at,
 			created_at, updated_at
 		FROM handyman_profiles WHERE %s`, condition)
 
 	p := &domain.HandymanProfile{}
-	var companyName, nip, phone, email, bio, avatarURL sql.NullString
+	var companyName, nip, companyAddress, pkdCode, gusStatus, phone, email, businessType, bio, avatarURL, expYears, workingHours, verifStatus, ceidgURL, microStatus, microCode sql.NullString
+	var ceidgUploadedAt, microConfirmedAt pq.NullTime
 
 	err := r.db.QueryRowContext(ctx, query, arg).Scan(
-		&p.ID, &p.UserID,
-		&companyName, &nip, &phone, &email,
-		&bio, &avatarURL,
-		pq.Array(&p.Categories), pq.Array(&p.Districts),
-		&p.IsAvailable, &p.EmergencyAvailable, &p.IsVerified,
+		&p.ID, &p.UserID, &companyName, &nip, &companyAddress, &pkdCode, &gusStatus, &p.GUSVerified,
+		&phone, &email, &businessType, &p.IsVATPayer, &p.ConsentIdentityVerification, &p.ConsentMarketing,
+		&bio, &avatarURL, &expYears, &workingHours, pq.Array(&p.Categories), pq.Array(&p.Districts),
+		&p.IsAvailable, &p.EmergencyAvailable, &p.IsVerified, &verifStatus,
+		&ceidgURL, &ceidgUploadedAt, &microStatus, &microCode, &microConfirmedAt,
 		&p.CreatedAt, &p.UpdatedAt,
 	)
 	if err != nil {
@@ -88,10 +104,27 @@ func (r *PostgresRepository) getByCondition(ctx context.Context, condition strin
 
 	p.CompanyName = companyName.String
 	p.NIP = nip.String
+	p.CompanyAddress = companyAddress.String
+	p.PKDCode = pkdCode.String
+	p.GUSStatus = gusStatus.String
 	p.Phone = phone.String
 	p.Email = email.String
+	p.BusinessType = businessType.String
 	p.Bio = bio.String
 	p.AvatarURL = avatarURL.String
+	p.ExperienceYears = expYears.String
+	p.WorkingHours = workingHours.String
+	p.VerificationStatus = verifStatus.String
+	p.CEIDGDocumentURL = ceidgURL.String
+	p.MicrotransferStatus = microStatus.String
+	p.MicrotransferCode = microCode.String
+
+	if ceidgUploadedAt.Valid {
+		p.CEIDGUploadedAt = &ceidgUploadedAt.Time
+	}
+	if microConfirmedAt.Valid {
+		p.MicrotransferConfirmedAt = &microConfirmedAt.Time
+	}
 
 	if p.Categories == nil {
 		p.Categories = []uuid.UUID{}
@@ -107,18 +140,22 @@ func (r *PostgresRepository) getByCondition(ctx context.Context, condition strin
 func (r *PostgresRepository) Update(ctx context.Context, profile *domain.HandymanProfile) error {
 	query := `
 		UPDATE handyman_profiles SET
-			company_name = $2, nip = $3, phone = $4, email = $5,
-			bio = $6, avatar_url = $7,
-			categories = $8, districts = $9,
-			is_available = $10, emergency_available = $11, is_verified = $12
+			company_name = $2, nip = $3, company_address = $4, pkd_code = $5, gus_status = $6, gus_verified = $7,
+			phone = $8, email = $9, business_type = $10, is_vat_payer = $11, consent_identity_verification = $12, consent_marketing = $13,
+			bio = $14, avatar_url = $15, experience_years = $16, working_hours = $17,
+			categories = $18, districts = $19,
+			is_available = $20, emergency_available = $21, is_verified = $22, verification_status = $23,
+			ceidg_document_url = $24, ceidg_uploaded_at = $25, microtransfer_status = $26, microtransfer_code = $27, microtransfer_confirmed_at = $28
 		WHERE id = $1`
 
 	result, err := r.db.ExecContext(ctx, query,
 		profile.ID,
-		nullStr(profile.CompanyName), nullStr(profile.NIP), nullStr(profile.Phone), nullStr(profile.Email),
-		nullStr(profile.Bio), nullStr(profile.AvatarURL),
+		nullStr(profile.CompanyName), nullStr(profile.NIP), nullStr(profile.CompanyAddress), nullStr(profile.PKDCode), nullStr(profile.GUSStatus), profile.GUSVerified,
+		nullStr(profile.Phone), nullStr(profile.Email), nullStr(profile.BusinessType), profile.IsVATPayer, profile.ConsentIdentityVerification, profile.ConsentMarketing,
+		nullStr(profile.Bio), nullStr(profile.AvatarURL), nullStr(profile.ExperienceYears), nullStr(profile.WorkingHours),
 		pq.Array(profile.Categories), pq.Array(profile.Districts),
-		profile.IsAvailable, profile.EmergencyAvailable, profile.IsVerified,
+		profile.IsAvailable, profile.EmergencyAvailable, profile.IsVerified, nullStr(profile.VerificationStatus),
+		nullStr(profile.CEIDGDocumentURL), profile.CEIDGUploadedAt, nullStr(profile.MicrotransferStatus), nullStr(profile.MicrotransferCode), profile.MicrotransferConfirmedAt,
 	)
 	if err != nil {
 		return err
@@ -180,9 +217,11 @@ func (r *PostgresRepository) Search(ctx context.Context, filter SearchFilter) ([
 
 	// Fetch
 	query := fmt.Sprintf(`
-		SELECT id, user_id, company_name, nip, phone, email,
-			bio, avatar_url, categories, districts,
-			is_available, emergency_available, is_verified,
+		SELECT id, user_id, company_name, nip, company_address, pkd_code, gus_status, gus_verified,
+			phone, email, business_type, is_vat_payer, consent_identity_verification, consent_marketing,
+			bio, avatar_url, experience_years, working_hours, categories, districts,
+			is_available, emergency_available, is_verified, verification_status,
+			ceidg_document_url, ceidg_uploaded_at, microtransfer_status, microtransfer_code, microtransfer_confirmed_at,
 			created_at, updated_at
 		FROM handyman_profiles %s
 		ORDER BY is_verified DESC, created_at DESC
@@ -199,14 +238,15 @@ func (r *PostgresRepository) Search(ctx context.Context, filter SearchFilter) ([
 	var profiles []*domain.HandymanProfile
 	for rows.Next() {
 		p := &domain.HandymanProfile{}
-		var companyName, nip, phone, email, bio, avatarURL sql.NullString
+		var companyName, nip, companyAddress, pkdCode, gusStatus, phone, email, businessType, bio, avatarURL, expYears, workingHours, verifStatus, ceidgURL, microStatus, microCode sql.NullString
+		var ceidgUploadedAt, microConfirmedAt pq.NullTime
 
 		if err := rows.Scan(
-			&p.ID, &p.UserID,
-			&companyName, &nip, &phone, &email,
-			&bio, &avatarURL,
-			pq.Array(&p.Categories), pq.Array(&p.Districts),
-			&p.IsAvailable, &p.EmergencyAvailable, &p.IsVerified,
+			&p.ID, &p.UserID, &companyName, &nip, &companyAddress, &pkdCode, &gusStatus, &p.GUSVerified,
+			&phone, &email, &businessType, &p.IsVATPayer, &p.ConsentIdentityVerification, &p.ConsentMarketing,
+			&bio, &avatarURL, &expYears, &workingHours, pq.Array(&p.Categories), pq.Array(&p.Districts),
+			&p.IsAvailable, &p.EmergencyAvailable, &p.IsVerified, &verifStatus,
+			&ceidgURL, &ceidgUploadedAt, &microStatus, &microCode, &microConfirmedAt,
 			&p.CreatedAt, &p.UpdatedAt,
 		); err != nil {
 			return nil, 0, err
@@ -214,10 +254,28 @@ func (r *PostgresRepository) Search(ctx context.Context, filter SearchFilter) ([
 
 		p.CompanyName = companyName.String
 		p.NIP = nip.String
+		p.CompanyAddress = companyAddress.String
+		p.PKDCode = pkdCode.String
+		p.GUSStatus = gusStatus.String
 		p.Phone = phone.String
 		p.Email = email.String
+		p.BusinessType = businessType.String
 		p.Bio = bio.String
 		p.AvatarURL = avatarURL.String
+		p.ExperienceYears = expYears.String
+		p.WorkingHours = workingHours.String
+		p.VerificationStatus = verifStatus.String
+		p.CEIDGDocumentURL = ceidgURL.String
+		p.MicrotransferStatus = microStatus.String
+		p.MicrotransferCode = microCode.String
+
+		if ceidgUploadedAt.Valid {
+			p.CEIDGUploadedAt = &ceidgUploadedAt.Time
+		}
+		if microConfirmedAt.Valid {
+			p.MicrotransferConfirmedAt = &microConfirmedAt.Time
+		}
+
 		if p.Categories == nil {
 			p.Categories = []uuid.UUID{}
 		}
@@ -234,9 +292,11 @@ func (r *PostgresRepository) Search(ctx context.Context, filter SearchFilter) ([
 // FindMatchingForJob finds available handymen matching a job's category and district.
 func (r *PostgresRepository) FindMatchingForJob(ctx context.Context, categoryID, districtID uuid.UUID, emergency bool) ([]*domain.HandymanProfile, error) {
 	query := `
-		SELECT id, user_id, company_name, nip, phone, email,
-			bio, avatar_url, categories, districts,
-			is_available, emergency_available, is_verified,
+		SELECT id, user_id, company_name, nip, company_address, pkd_code, gus_status, gus_verified,
+			phone, email, business_type, is_vat_payer, consent_identity_verification, consent_marketing,
+			bio, avatar_url, experience_years, working_hours, categories, districts,
+			is_available, emergency_available, is_verified, verification_status,
+			ceidg_document_url, ceidg_uploaded_at, microtransfer_status, microtransfer_code, microtransfer_confirmed_at,
 			created_at, updated_at
 		FROM handyman_profiles
 		WHERE is_available = true
@@ -260,14 +320,15 @@ func (r *PostgresRepository) FindMatchingForJob(ctx context.Context, categoryID,
 	var profiles []*domain.HandymanProfile
 	for rows.Next() {
 		p := &domain.HandymanProfile{}
-		var companyName, nip, phone, email, bio, avatarURL sql.NullString
+		var companyName, nip, companyAddress, pkdCode, gusStatus, phone, email, businessType, bio, avatarURL, expYears, workingHours, verifStatus, ceidgURL, microStatus, microCode sql.NullString
+		var ceidgUploadedAt, microConfirmedAt pq.NullTime
 
 		if err := rows.Scan(
-			&p.ID, &p.UserID,
-			&companyName, &nip, &phone, &email,
-			&bio, &avatarURL,
-			pq.Array(&p.Categories), pq.Array(&p.Districts),
-			&p.IsAvailable, &p.EmergencyAvailable, &p.IsVerified,
+			&p.ID, &p.UserID, &companyName, &nip, &companyAddress, &pkdCode, &gusStatus, &p.GUSVerified,
+			&phone, &email, &businessType, &p.IsVATPayer, &p.ConsentIdentityVerification, &p.ConsentMarketing,
+			&bio, &avatarURL, &expYears, &workingHours, pq.Array(&p.Categories), pq.Array(&p.Districts),
+			&p.IsAvailable, &p.EmergencyAvailable, &p.IsVerified, &verifStatus,
+			&ceidgURL, &ceidgUploadedAt, &microStatus, &microCode, &microConfirmedAt,
 			&p.CreatedAt, &p.UpdatedAt,
 		); err != nil {
 			return nil, err
@@ -275,10 +336,28 @@ func (r *PostgresRepository) FindMatchingForJob(ctx context.Context, categoryID,
 
 		p.CompanyName = companyName.String
 		p.NIP = nip.String
+		p.CompanyAddress = companyAddress.String
+		p.PKDCode = pkdCode.String
+		p.GUSStatus = gusStatus.String
 		p.Phone = phone.String
 		p.Email = email.String
+		p.BusinessType = businessType.String
 		p.Bio = bio.String
 		p.AvatarURL = avatarURL.String
+		p.ExperienceYears = expYears.String
+		p.WorkingHours = workingHours.String
+		p.VerificationStatus = verifStatus.String
+		p.CEIDGDocumentURL = ceidgURL.String
+		p.MicrotransferStatus = microStatus.String
+		p.MicrotransferCode = microCode.String
+
+		if ceidgUploadedAt.Valid {
+			p.CEIDGUploadedAt = &ceidgUploadedAt.Time
+		}
+		if microConfirmedAt.Valid {
+			p.MicrotransferConfirmedAt = &microConfirmedAt.Time
+		}
+
 		if p.Categories == nil {
 			p.Categories = []uuid.UUID{}
 		}
@@ -297,11 +376,11 @@ func (r *PostgresRepository) FindMatchingForJob(ctx context.Context, categoryID,
 // CreatePricingItem adds a pricing item.
 func (r *PostgresRepository) CreatePricingItem(ctx context.Context, item *domain.PricingItem) error {
 	query := `
-		INSERT INTO handyman_pricing (id, profile_id, service_name, price_from, price_to, unit, sort_order)
-		VALUES ($1, $2, $3, $4, $5, $6, $7)`
+		INSERT INTO handyman_pricing (id, profile_id, service_name, price_from, price_to, unit, estimated_duration, sort_order)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`
 
 	_, err := r.db.ExecContext(ctx, query,
-		item.ID, item.ProfileID, item.ServiceName, item.PriceFrom, item.PriceTo, item.Unit, item.SortOrder,
+		item.ID, item.ProfileID, item.ServiceName, item.PriceFrom, item.PriceTo, item.Unit, nullStr(item.EstimatedDuration), item.SortOrder,
 	)
 	return err
 }
@@ -310,11 +389,11 @@ func (r *PostgresRepository) CreatePricingItem(ctx context.Context, item *domain
 func (r *PostgresRepository) UpdatePricingItem(ctx context.Context, item *domain.PricingItem) error {
 	query := `
 		UPDATE handyman_pricing SET
-			service_name = $2, price_from = $3, price_to = $4, unit = $5, sort_order = $6
+			service_name = $2, price_from = $3, price_to = $4, unit = $5, estimated_duration = $6, sort_order = $7
 		WHERE id = $1`
 
 	result, err := r.db.ExecContext(ctx, query,
-		item.ID, item.ServiceName, item.PriceFrom, item.PriceTo, item.Unit, item.SortOrder,
+		item.ID, item.ServiceName, item.PriceFrom, item.PriceTo, item.Unit, nullStr(item.EstimatedDuration), item.SortOrder,
 	)
 	if err != nil {
 		return err
@@ -342,7 +421,7 @@ func (r *PostgresRepository) DeletePricingItem(ctx context.Context, id uuid.UUID
 // ListPricing retrieves all pricing items for a profile.
 func (r *PostgresRepository) ListPricing(ctx context.Context, profileID uuid.UUID) ([]*domain.PricingItem, error) {
 	query := `
-		SELECT id, profile_id, service_name, price_from, price_to, unit, sort_order
+		SELECT id, profile_id, service_name, price_from, price_to, unit, estimated_duration, sort_order
 		FROM handyman_pricing WHERE profile_id = $1
 		ORDER BY sort_order, service_name`
 
@@ -355,16 +434,19 @@ func (r *PostgresRepository) ListPricing(ctx context.Context, profileID uuid.UUI
 	var items []*domain.PricingItem
 	for rows.Next() {
 		item := &domain.PricingItem{}
+		var estDur sql.NullString
 		if err := rows.Scan(
 			&item.ID, &item.ProfileID, &item.ServiceName,
-			&item.PriceFrom, &item.PriceTo, &item.Unit, &item.SortOrder,
+			&item.PriceFrom, &item.PriceTo, &item.Unit, &estDur, &item.SortOrder,
 		); err != nil {
 			return nil, err
 		}
+		item.EstimatedDuration = estDur.String
 		items = append(items, item)
 	}
 	return items, rows.Err()
 }
+
 
 // ===== Portfolio =====
 

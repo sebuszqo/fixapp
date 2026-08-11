@@ -31,13 +31,18 @@ func NewHandler(service *Service, logger *zap.Logger) *Handler {
 
 // Register registers the handyman routes on the given mux.
 func (h *Handler) Register(mux *http.ServeMux) {
-	// Public search
+	// Public search & lookup
 	mux.Handle("GET /handymen", http.HandlerFunc(h.SearchProfiles))
+	mux.Handle("GET /handymen/gus-lookup", http.HandlerFunc(h.LookupGUS))
 	mux.Handle("GET /handymen/{id}", http.HandlerFunc(h.GetPublicProfile))
 
 	// Handyman's own profile management
 	mux.Handle("GET /handyman/profile", middleware.RequireHandyman(http.HandlerFunc(h.GetMyProfile)))
 	mux.Handle("PATCH /handyman/profile", middleware.RequireHandyman(http.HandlerFunc(h.UpdateMyProfile)))
+
+	// Verification
+	mux.Handle("POST /handyman/verification/ceidg", middleware.RequireHandyman(http.HandlerFunc(h.UploadCEIDG)))
+	mux.Handle("POST /handyman/verification/microtransfer", middleware.RequireHandyman(http.HandlerFunc(h.ConfirmMicrotransfer)))
 
 	// Pricing management
 	mux.Handle("POST /handyman/pricing", middleware.RequireHandyman(http.HandlerFunc(h.AddPricing)))
@@ -315,6 +320,64 @@ func (h *Handler) DeletePortfolio(w http.ResponseWriter, r *http.Request) {
 
 	response.NoContent(w)
 }
+
+// LookupGUS handles GUS database lookup by NIP number.
+func (h *Handler) LookupGUS(w http.ResponseWriter, r *http.Request) {
+	log := ctxlog.FromContext(r.Context())
+
+	nip := r.URL.Query().Get("nip")
+	if nip == "" {
+		response.BadRequest(w, "Parametr NIP jest wymagany")
+		return
+	}
+
+	result, err := h.service.LookupGUS(r.Context(), nip)
+	if err != nil {
+		h.handleError(w, log, err)
+		return
+	}
+
+	response.OK(w, result)
+}
+
+// UploadCEIDG handles PDF document upload for CEIDG verification.
+func (h *Handler) UploadCEIDG(w http.ResponseWriter, r *http.Request) {
+	log := ctxlog.FromContext(r.Context())
+
+	var req CEIDGUploadRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		response.BadRequest(w, "Invalid request body")
+		return
+	}
+
+	profile, err := h.service.UploadCEIDG(r.Context(), req.DocumentURL)
+	if err != nil {
+		h.handleError(w, log, err)
+		return
+	}
+
+	response.OK(w, ToProfileResponse(profile))
+}
+
+// ConfirmMicrotransfer records confirmation of 1 gr microtransfer.
+func (h *Handler) ConfirmMicrotransfer(w http.ResponseWriter, r *http.Request) {
+	log := ctxlog.FromContext(r.Context())
+
+	var req MicrotransferConfirmRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		response.BadRequest(w, "Invalid request body")
+		return
+	}
+
+	profile, err := h.service.ConfirmMicrotransfer(r.Context(), req.Code)
+	if err != nil {
+		h.handleError(w, log, err)
+		return
+	}
+
+	response.OK(w, ToProfileResponse(profile))
+}
+
 
 // handleError maps domain errors to HTTP responses.
 func (h *Handler) handleError(w http.ResponseWriter, log *zap.Logger, err error) {
