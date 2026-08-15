@@ -2,16 +2,18 @@ services:
   api:
     build: .
     ports: ["8080:8080"]
+    env_file:
+      - .env
     environment:
       PORT: "8080"
       DB_HOST: db
       DB_PORT: "5432"
-      DB_USER: fixapp
-      DB_PASSWORD: fixapp
-      DB_NAME: fixapp
+      DB_USER: ${DB_USER:-fixapp}
+      DB_PASSWORD: ${DB_PASSWORD:-fixapp}
+      DB_NAME: ${DB_NAME:-fixapp}
       DB_SSLMODE: disable
-      JWT_SECRET: dev-secret-change-in-production
-      LOG_LEVEL: debug
+      JWT_SECRET: ${JWT_SECRET:-dev-secret-change-in-production}
+      LOG_LEVEL: ${LOG_LEVEL:-debug}
       CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:5173,http://localhost:3000,http://localhost:5174,http://localhost:3001,http://127.0.0.1:5173,http://127.0.0.1:3000}
     depends_on:
       db:

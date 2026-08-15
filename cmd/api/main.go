@@ -55,9 +55,15 @@ import (
 // @description Type "Bearer" followed by a space and JWT token.
 
 func main() {
-	// Load .env file if it exists
+	// Load .env file if it exists (check current directory and fallback paths)
 	if err := godotenv.Load(); err != nil {
-		log.Println("No .env file found, using environment variables")
+		if err2 := godotenv.Load("../.env", "backend/.env", "../../.env"); err2 != nil {
+			log.Println("No .env file found, using environment variables")
+		} else {
+			log.Println("Loaded .env from relative path")
+		}
+	} else {
+		log.Println("Loaded .env from working directory")
 	}
 
 	// Initialize logger
@@ -100,6 +106,8 @@ func main() {
 		})
 		providerRegistry.Register(googleProvider)
 		logger.Log.Info("Registered Google OAuth provider")
+	} else {
+		logger.Log.Warn("GOOGLE_CLIENT_ID is not set — Google OAuth provider disabled")
 	}
 
 	// Register Facebook OAuth (if configured)
@@ -111,6 +119,8 @@ func main() {
 		})
 		providerRegistry.Register(facebookProvider)
 		logger.Log.Info("Registered Facebook OAuth provider")
+	} else {
+		logger.Log.Info("FACEBOOK_APP_ID not set — Facebook OAuth provider disabled")
 	}
 
 	// Initialize repositories
