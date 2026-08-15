@@ -2,6 +2,7 @@ package handyman
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"fixapp/internal/auth"
@@ -11,10 +12,16 @@ import (
 	"go.uber.org/zap"
 )
 
+// NotificationService defines methods for sending notifications.
+type NotificationService interface {
+	CreateNotification(ctx context.Context, userID uuid.UUID, notifType domain.NotificationType, title, content, linkURL string) (*domain.Notification, error)
+}
+
 // Service handles handyman profile business logic.
 type Service struct {
-	repo   Repository
-	logger *zap.Logger
+	repo         Repository
+	logger       *zap.Logger
+	notifService NotificationService
 }
 
 // NewService creates a new handyman service.
@@ -22,6 +29,29 @@ func NewService(repo Repository, logger *zap.Logger) *Service {
 	return &Service{
 		repo:   repo,
 		logger: logger,
+	}
+}
+
+// SetNotificationService sets the notification service for handyman.
+func (s *Service) SetNotificationService(ns NotificationService) {
+	s.notifService = ns
+}
+
+// CheckAndNotifyIncompleteProfile checks if the profile has missing data and sends a system notification.
+func (s *Service) CheckAndNotifyIncompleteProfile(ctx context.Context, userID uuid.UUID, profile *domain.HandymanProfile) {
+	if s.notifService == nil {
+		return
+	}
+	isIncomplete := profile == nil || profile.NIP == "" || profile.CompanyName == "" || len(profile.Categories) == 0 || (profile.VerificationStatus != "verified" && !profile.IsVerified)
+	if isIncomplete {
+		_, _ = s.notifService.CreateNotification(
+			ctx,
+			userID,
+			domain.NotificationTypeSystem,
+			"Dokończ rejestrację profilu fachowca",
+			"Twój profil nie jest jeszcze w pełni uzupełniony. Kliknij tutaj, aby dokończyć konfigurację i zacząć otrzymywać zlecenia.",
+			"/register?type=pro",
+		)
 	}
 }
 
@@ -52,7 +82,21 @@ func (s *Service) GetMyProfile(ctx context.Context) (*domain.HandymanProfile, er
 		return nil, domain.ErrInvalidInput
 	}
 
-	return s.repo.GetByUserID(ctx, userID)
+	profile, err := s.repo.GetByUserID(ctx, userID)
+	if err != nil {
+		if errors.Is(err, domain.ErrProfileNotFound) {
+			profile, err = s.CreateProfile(ctx, userID)
+			if err != nil {
+				s.CheckAndNotifyIncompleteProfile(ctx, userID, nil)
+				return nil, err
+			}
+		} else {
+			return nil, err
+		}
+	}
+
+	s.CheckAndNotifyIncompleteProfile(ctx, userID, profile)
+	return profile, nil
 }
 
 // GetFullProfile retrieves a profile with pricing and portfolio.

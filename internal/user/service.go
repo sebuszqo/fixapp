@@ -3,6 +3,8 @@ package user
 import (
 	"context"
 	"errors"
+	"fmt"
+	"time"
 
 	"fixapp/internal/auth"
 	"fixapp/internal/auth/permission"
@@ -138,6 +140,44 @@ func (s *Service) UpdateProfile(ctx context.Context, name, phone, avatarURL stri
 	}
 
 	return user, nil
+}
+
+// DeleteAccount deactivates the authenticated user's account and anonymizes sensitive data.
+func (s *Service) DeleteAccount(ctx context.Context) error {
+	authUser := auth.FromContext(ctx)
+	if authUser == nil {
+		return domain.ErrUnauthorized
+	}
+
+	id, err := uuid.Parse(authUser.ID)
+	if err != nil {
+		return domain.ErrInvalidInput
+	}
+
+	user, err := s.repo.GetByID(ctx, id)
+	if err != nil {
+		return err
+	}
+
+	// Deactivate and anonymize personal details (RODO/GDPR compliance)
+	// Changing email and provider_id frees them up so the user can re-register with a fresh account.
+	nowUnix := time.Now().Unix()
+	user.IsActive = false
+	user.Name = "Konto Usunięte"
+	user.Phone = ""
+	user.AvatarURL = ""
+	user.Email = fmt.Sprintf("deleted_%s_%d@fixapp.local", user.ID.String()[:8], nowUnix)
+	user.ProviderID = fmt.Sprintf("deleted_%s_%d", user.ID.String()[:8], nowUnix)
+
+	if err := s.repo.Update(ctx, user); err != nil {
+		return err
+	}
+
+	s.logger.Info("user account deleted/anonymized",
+		zap.String("user_id", user.ID.String()),
+	)
+
+	return nil
 }
 
 // List retrieves users with filters (admin only).

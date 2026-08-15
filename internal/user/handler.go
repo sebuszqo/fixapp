@@ -35,6 +35,8 @@ func (h *Handler) Register(mux *http.ServeMux) {
 	// Profile routes (authenticated users)
 	mux.Handle("GET /profile", middleware.RequireAuth(http.HandlerFunc(h.GetProfile)))
 	mux.Handle("PATCH /profile", middleware.RequireAuth(http.HandlerFunc(h.UpdateProfile)))
+	mux.Handle("DELETE /profile", middleware.RequireAuth(http.HandlerFunc(h.DeleteAccount)))
+	mux.Handle("POST /profile/delete", middleware.RequireAuth(http.HandlerFunc(h.DeleteAccount)))
 
 	// Admin routes
 	mux.Handle("GET /admin/users", middleware.RequireAdmin(http.HandlerFunc(h.ListUsers)))
@@ -99,6 +101,29 @@ func (h *Handler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 	}
 
 	response.OK(w, ToProfileResponse(user))
+}
+
+// DeleteAccount godoc
+// @Summary      Delete current user's account
+// @Description  Deactivates the authenticated user's account and anonymizes personal data
+// @Tags         profile
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Success      200  {object}  map[string]string
+// @Failure      401  {object}  response.Error
+// @Router       /profile [delete]
+func (h *Handler) DeleteAccount(w http.ResponseWriter, r *http.Request) {
+	log := ctxlog.FromContext(r.Context())
+
+	if err := h.service.DeleteAccount(r.Context()); err != nil {
+		h.handleError(w, log, err)
+		return
+	}
+
+	response.OK(w, map[string]string{
+		"message": "Konto zostało pomyślnie usunięte",
+	})
 }
 
 // ListUsers godoc

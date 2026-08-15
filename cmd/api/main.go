@@ -83,6 +83,13 @@ func main() {
 	defer database.Close(db)
 	logger.Log.Info("Connected to database")
 
+	// Run auto migrations
+	if err := database.RunMigrations(db); err != nil {
+		logger.Log.Error("Failed to apply database migrations", zap.Error(err))
+	} else {
+		logger.Log.Info("Database schema verified and up to date")
+	}
+
 	// Initialize repositories
 	userRepo := user.NewPostgresRepository(db)
 
@@ -156,6 +163,7 @@ func main() {
 	jobService.SetWalletRepository(walletRepo)
 	jobService.SetLeadRepository(leadRepo)
 	leadService.SetNotificationService(notificationService)
+	handymanService.SetNotificationService(notificationService)
 
 	// Dispatch service: matches jobs to handymen and creates leads
 	dispatchService := dispatch.NewService(handymanRepo, catalogRepo, leadRepo, scoringRepo, logger.Log)

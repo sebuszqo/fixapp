@@ -133,6 +133,7 @@ func (r *PostgresRepository) Update(ctx context.Context, user *domain.User) erro
 			phone = $6,
 			is_active = $7,
 			email_verified = $8,
+			provider_id = $9,
 			updated_at = NOW()
 		WHERE id = $1
 	`
@@ -146,6 +147,7 @@ func (r *PostgresRepository) Update(ctx context.Context, user *domain.User) erro
 		nullString(user.Phone),
 		user.IsActive,
 		user.EmailVerified,
+		nullString(user.ProviderID),
 	)
 	if err != nil {
 		if isUniqueViolation(err) {
