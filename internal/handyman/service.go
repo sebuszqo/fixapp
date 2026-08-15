@@ -67,6 +67,9 @@ func (s *Service) CreateProfile(ctx context.Context, userID uuid.UUID) (*domain.
 		zap.String("user_id", userID.String()),
 	)
 
+	// Send initial reminder once when starter profile is created
+	s.CheckAndNotifyIncompleteProfile(ctx, userID, profile)
+
 	return profile, nil
 }
 
@@ -87,7 +90,6 @@ func (s *Service) GetMyProfile(ctx context.Context) (*domain.HandymanProfile, er
 		if errors.Is(err, domain.ErrProfileNotFound) {
 			profile, err = s.CreateProfile(ctx, userID)
 			if err != nil {
-				s.CheckAndNotifyIncompleteProfile(ctx, userID, nil)
 				return nil, err
 			}
 		} else {
@@ -95,7 +97,6 @@ func (s *Service) GetMyProfile(ctx context.Context) (*domain.HandymanProfile, er
 		}
 	}
 
-	s.CheckAndNotifyIncompleteProfile(ctx, userID, profile)
 	return profile, nil
 }
 

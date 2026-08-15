@@ -24,11 +24,11 @@ func (r *PostgresRepository) Create(ctx context.Context, n *domain.Notification)
 	if n.LinkURL != "" {
 		var exists bool
 		err := r.db.QueryRowContext(ctx,
-			`SELECT EXISTS(SELECT 1 FROM notifications WHERE user_id = $1 AND link_url = $2 AND is_read = false)`,
+			`SELECT EXISTS(SELECT 1 FROM notifications WHERE user_id = $1 AND link_url = $2)`,
 			n.UserID, n.LinkURL,
 		).Scan(&exists)
 		if err == nil && exists {
-			return nil // already has an active unread notification for this link
+			return nil // already has a notification for this link
 		}
 	}
 
