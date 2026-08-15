@@ -21,13 +21,20 @@ func NewPostgresRepository(db *sql.DB) *PostgresRepository {
 }
 
 func (r *PostgresRepository) Create(ctx context.Context, n *domain.Notification) error {
+	if n.LinkURL != "" {
+		var exists bool
+		err := r.db.QueryRowContext(ctx,
+			`SELECT EXISTS(SELECT 1 FROM notifications WHERE user_id = $1 AND link_url = $2 AND is_read = false)`,
+			n.UserID, n.LinkURL,
+		).Scan(&exists)
+		if err == nil && exists {
+			return nil // already has an active unread notification for this link
+		}
+	}
+
 	query := `
 		INSERT INTO notifications (id, user_id, type, title, content, link_url, is_read, created_at)
-		SELECT $1, $2, $3, $4, $5, $6, $7, $8
-		WHERE NOT EXISTS (
-			SELECT 1 FROM notifications 
-			WHERE user_id = $2 AND link_url = $6 AND is_read = false
-		)`
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`
 
 	_, err := r.db.ExecContext(ctx, query,
 		n.ID,
